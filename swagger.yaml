@@ -2,17 +2,17 @@ openapi: 3.0.0
 info:
   title: OAuth2 Server API
   version: "1.0.0"
-  description: API для управления OAuth2 аутентификацией и авторизацией.
+  description: API for managing OAuth2 authentication and authorization.
 servers:
   - url: http://localhost:3000
 paths:
   /auth/signup:
     post:
-      summary: Регистрация нового пользователя
-      description: SingUp with provider
+      summary: User Registration
+      description: SignUp with provider
       operationId: SignUpHandler
       requestBody:
-        description: Данные для регистрации
+        description: Registration data
         required: true
         content:
           application/json:
@@ -20,7 +20,7 @@ paths:
               $ref: '#/components/schemas/SignUpRequest'
       responses:
         '200':
-          description: Успешная регистрация
+          description: Successful registration
           content:
             application/json:
               schema:
@@ -31,18 +31,18 @@ paths:
               schema:
                 $ref: '#/components/schemas/HTTPError'
         '500':
-          description: Внутренняя ошибка сервера
+          description: Internal server error
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPError'
   /auth/signin:
     post:
-      summary: Аутентификация пользователя
+      summary: User Authentication
       description: SignIn with provider
       operationId: SignInHandler
       requestBody:
-        description: Данные для аутентификации
+        description: Authentication data
         required: true
         content:
           application/json:
@@ -50,32 +50,32 @@ paths:
               $ref: '#/components/schemas/SignInRequest'
       responses:
         '200':
-          description: Успешная аутентификация
+          description: Successful authentication
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/AuthResponse'
         '400':
-          description: Неверные данные запроса
+          description: Invalid request data
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPError'
         '401':
-          description: Неавторизованный
+          description: Unauthorized
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPError'
         '500':
-          description: Внутренняя ошибка сервера
+          description: Internal server error
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPError'
   /auth/redirect:
     get:
-      summary: Перенаправление на страницу провайдера
+      summary: Redirect to Provider's Auth Page
       description: Redirect to provider's auth page
       operationId: RedirectHandler
       parameters:
@@ -84,35 +84,35 @@ paths:
           required: true
           schema:
             type: string
-          description: Название провайдера
+          description: Provider name
         - name: redirect_uri
           in: query
           required: true
           schema:
             type: string
-          description: URI перенаправления
+          description: Redirect URI
         - name: code_challenge
           in: query
           required: false
           schema:
             type: string
-          description: Код-верификатор для PKCE
+          description: Code verifier for PKCE
       responses:
         '302':
-          description: Перенаправление
+          description: Redirect
         '400':
-          description: Неверные параметры запроса
+          description: Invalid request parameters
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPError'
   /auth/callback:
     post:
-      summary: Обработка колбэка от провайдера
+      summary: Callback Handler
       description: Callback from provider after authentication
       operationId: CallbackHandler
       requestBody:
-        description: Данные колбэка
+        description: Callback data
         required: true
         content:
           application/json:
@@ -120,36 +120,36 @@ paths:
               $ref: '#/components/schemas/CallbackRequest'
       responses:
         '200':
-          description: Успешная обработка колбэка
+          description: Successful callback processing
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/AuthResponse'
         '400':
-          description: Неверные данные запроса
+          description: Invalid request data
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPError'
         '401':
-          description: Неавторизованный
+          description: Unauthorized
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPError'
         '500':
-          description: Внутренняя ошибка сервера
+          description: Internal server error
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPError'
   /auth/token/refresh:
     post:
-      summary: Обновление токена
+      summary: Token Refresh
       description: Refresh access token using refresh token
       operationId: RefreshTokenHandler
       requestBody:
-        description: Данные для обновления токена
+        description: Token refresh data
         required: true
         content:
           application/json:
@@ -157,36 +157,36 @@ paths:
               $ref: '#/components/schemas/RefreshTokenRequest'
       responses:
         '200':
-          description: Токен обновлён
+          description: Token refreshed
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/TokenServiceResponse'
         '400':
-          description: Неверные данные запроса
+          description: Invalid request data
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPError'
         '401':
-          description: Неавторизованный
+          description: Unauthorized
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPError'
         '500':
-          description: Внутренняя ошибка сервера
+          description: Internal server error
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPError'
   /auth/logout:
     post:
-      summary: Выход из системы
+      summary: User Logout
       description: Logout user by invalidating access token
       operationId: LogoutHandler
       requestBody:
-        description: Данные для выхода
+        description: Logout data
         required: true
         content:
           application/json:
@@ -194,51 +194,51 @@ paths:
               $ref: '#/components/schemas/LogoutRequest'
       responses:
         '200':
-          description: Успешный выход
+          description: Successful logout
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/LogoutSuccess'
         '400':
-          description: Неверные данные запроса
+          description: Invalid request data
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPError'
         '500':
-          description: Внутренняя ошибка сервера
+          description: Internal server error
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPError'
   /user/profile:
     get:
-      summary: Получение профиля пользователя
+      summary: Get User Profile
       description: Get user profile information
       operationId: GetUserProfile
       security:
         - BearerAuth: []
       responses:
         '200':
-          description: Успешное получение профиля
+          description: Successful profile retrieval
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/UserProfile'
         '401':
-          description: Неавторизованный
+          description: Unauthorized
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPError'
     patch:
-      summary: Обновление профиля пользователя
+      summary: Update User Profile
       description: Update user profile information
       operationId: UpdateUserProfile
       security:
         - BearerAuth: []
       requestBody:
-        description: Данные для обновления профиля
+        description: Profile update data
         required: true
         content:
           application/json:
@@ -246,90 +246,90 @@ paths:
               $ref: '#/components/schemas/UpdateUserProfileRequest'
       responses:
         '200':
-          description: Успешное обновление профиля
+          description: Successful profile update
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/UserProfile'
         '400':
-          description: Неверные данные запроса
+          description: Invalid request data
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPError'
         '401':
-          description: Неавторизованный
+          description: Unauthorized
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPError'
         '500':
-          description: Внутренняя ошибка сервера
+          description: Internal server error
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPError'
   /user/account:
     delete:
-      summary: Удаление аккаунта пользователя
+      summary: Delete User Account
       description: Delete user account
       operationId: DeleteUserAccount
       security:
         - BearerAuth: []
       responses:
         '200':
-          description: Успешное удаление аккаунта
+          description: Successful account deletion
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/LogoutSuccess'
         '401':
-          description: Неавторизованный
+          description: Unauthorized
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPError'
         '500':
-          description: Внутренняя ошибка сервера
+          description: Internal server error
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPError'
   /user/backup:
     get:
-      summary: Резервное копирование данных пользователя
+      summary: User Data Backup
       description: Backup user data
       operationId: BackupUserData
       security:
         - BearerAuth: []
       responses:
         '200':
-          description: Успешное резервное копирование
+          description: Successful backup
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/BackupResponse'
         '401':
-          description: Неавторизованный
+          description: Unauthorized
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPError'
         '500':
-          description: Внутренняя ошибка сервера
+          description: Internal server error
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPError'
   /user/restore:
     post:
-      summary: Восстановление данных пользователя
+      summary: User Data Restore
       description: Restore user data
       operationId: RestoreUserData
       security:
         - BearerAuth: []
       requestBody:
-        description: Данные для восстановления
+        description: Restore data
         required: true
         content:
           application/json:
@@ -337,25 +337,25 @@ paths:
               $ref: '#/components/schemas/RestoreRequest'
       responses:
         '200':
-          description: Успешное восстановление
+          description: Successful restoration
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/RestoreResponse'
         '400':
-          description: Неверные данные запроса
+          description: Invalid request data
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPError'
         '401':
-          description: Неавторизованный
+          description: Unauthorized
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPError'
         '500':
-          description: Внутренняя ошибка сервера
+          description: Internal server error
           content:
             application/json:
               schema:
@@ -552,6 +552,6 @@ components:
       properties:
         error:
           type: string
-          example: "Неверные данные запроса"
+          example: "Invalid request data"
       required:
         - error
