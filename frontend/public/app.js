@@ -107,7 +107,11 @@ async function handleCallback() {
             localStorage.setItem("refresh_token", data.refresh_token);
         }
 
-        document.getElementById("response").textContent = JSON.stringify(data);
+        document.getElementById("response").textContent = JSON.stringify(
+            data,
+            null,
+            2
+        );
     } catch (error) {
         document.getElementById("response").textContent = `Error: ${error.message}`;
     }
@@ -127,9 +131,6 @@ async function getUserProfile() {
             method: "GET",
             headers: {Authorization: `Bearer ${jwtToken}`},
         });
-
-        console.log(`${serverBaseURL}/user/profile`);
-        console.log(accessToken);
 
         if (!response.ok) {
             const errorText = await response.text();

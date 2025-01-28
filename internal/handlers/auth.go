@@ -25,17 +25,6 @@ func (h *Handler) AuthHandler() dependency.AuthHandler {
 	}
 }
 
-// SignUpHandler Регистрация нового пользователя
-// @Summary Регистрация нового пользователя
-// @Description SingUp with provider
-// @Tags Auth
-// @Accept  json
-// @Produce  json
-// @Param signup body models.SignUpRequest true "Данные для регистрации"
-// @Success 200 {object} models.AuthResponse
-// @Failure 400 {object} models.HTTPError
-// @Failure 500 {object} models.HTTPError
-// @Router /auth/signup [post]
 func (h *Handler) SignUpHandler(w http.ResponseWriter, r *http.Request) {
 	var body struct {
 		Code        string `json:"code"`
@@ -265,6 +254,138 @@ func (h *Handler) RedirectHandler(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, authURL, http.StatusFound)
 }
 
+// RefreshTokenHandler
+func (h *Handler) RefreshTokenHandler(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		RefreshToken string `json:"refresh_token"`
+		Provider     string `json:"provider"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		http.Error(w, `{"error": "Invalid request body"}`, http.StatusBadRequest)
+		return
+	}
+
+	if body.RefreshToken == "" || body.Provider == "" {
+		http.Error(w, `{"error": "Missing refresh_token or provider"}`, http.StatusBadRequest)
+		return
+	}
+
+	token, err := h.repo.TokenRepository().RefreshAccessToken(body.RefreshToken, false)
+	if err != nil || token == nil {
+		http.Error(w, `{"error": "Invalid or expired refresh token"}`, http.StatusUnauthorized)
+		return
+	}
+
+	decryptAccess, err := util.Decrypt(token.AccessToken)
+	if err != nil {
+		http.Error(w, `{"error": "Invalid or expired access token"}`, http.StatusUnauthorized)
+		return
+	}
+	token.AccessToken = decryptAccess
+
+	if token.RefreshToken != "" {
+		decryptRefresh, err := util.Decrypt(token.RefreshToken)
+		if err != nil {
+			http.Error(w, `{"error": "Invalid or expired refresh token"}`, http.StatusUnauthorized)
+		}
+		token.RefreshToken = decryptRefresh
+	}
+
+	providerConfig, err := getProviderConfig(body.Provider, h.cfg.Authorization)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	data := url.Values{}
+	switch body.Provider {
+	case models.PROVIDER_FB:
+		data.Set("client_id", providerConfig.ClientID)
+		data.Set("client_secret", providerConfig.ClientSecret)
+		data.Set("refresh_token", token.RefreshToken)
+		data.Set("grant_type", "fb_exchange_token")
+		data.Set("fb_exchange_token", token.AccessToken)
+	case models.PROVIDER_GOOGLE,
+		models.PROVIDER_APPLE:
+		data.Set("client_id", providerConfig.ClientID)
+		data.Set("client_secret", providerConfig.ClientSecret)
+		data.Set("refresh_token", token.RefreshToken)
+		data.Set("grant_type", "refresh_token")
+		data.Set("prompt", "consent")
+		data.Set("access_type", "offline")
+	}
+
+	resp, err := http.PostForm(providerConfig.TokenURL, data)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("failed to exchange code for token: %w", err), http.StatusBadRequest)
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		http.Error(w, fmt.Sprintf("token exchange failed: %s, response: %s", resp.Status, string(body)), http.StatusBadRequest)
+		return
+	}
+
+	bodyBytes, err := io.ReadAll(resp.Body)
+	if err != nil {
+		http.Error(w, `{"error": "Failed to read response body"}`, http.StatusBadRequest)
+		return
+	}
+
+	var bodyResponse map[string]interface{}
+	if err = json.Unmarshal(bodyBytes, &bodyResponse); err != nil {
+		http.Error(w, fmt.Sprintf("failed to decode token response: %w", err.Error()), http.StatusBadRequest)
+		return
+	}
+
+	var tokenResponse providers.TokenResponse
+	if err = json.Unmarshal(bodyBytes, &tokenResponse); err != nil {
+		http.Error(w, fmt.Sprintf("failed to decode token response: %w", err.Error()), http.StatusBadRequest)
+		return
+	}
+
+	dataJSON, err := util.UserInfoToJSON(tokenResponse)
+	if err != nil {
+		http.Error(w, `{"error": "Unable to marshal user info"}`, http.StatusInternalServerError)
+		return
+	}
+
+	//TODO encrypt вынести в отдельный метод
+	updatedToken, err := h.repo.TokenRepository().UpdateToken(
+		models.Token{
+			ID:           token.ID,
+			UserID:       token.UserID,
+			Provider:     token.Provider,
+			AccessToken:  token.AccessToken,
+			RefreshToken: token.RefreshToken,
+			ExpirationIn: token.ExpirationIn,
+			ExpiresAt:    time.Now().Add(time.Duration(token.ExpirationIn) * time.Second),
+			Data:         string(dataJSON),
+			UpdatedAt:    time.Now(),
+		},
+		body.Provider,
+	)
+	if err != nil {
+		http.Error(w, `{"error": "Failed to save user info"}`, http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(models.TokenServiceResponse{
+		UserID:       updatedToken.UserID,
+		Provider:     updatedToken.Provider,
+		AccessToken:  updatedToken.AccessToken,
+		RefreshToken: updatedToken.RefreshToken,
+		ExpirationIn: updatedToken.ExpirationIn,
+		ExpiresAt:    updatedToken.ExpiresAt,
+		Data:         updatedToken.Data,
+	})
+}
+
 // CallbackHandler
 func (h *Handler) CallbackHandler(w http.ResponseWriter, r *http.Request) {
 	var body struct {
@@ -352,123 +473,11 @@ func (h *Handler) CallbackHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(models.AuthResponse{
 		JWTToken:             jwt,
-		AccessToken:          newToken.AccessToken,
+		AccessToken:          savedToken.AccessToken,
 		AccessTokenOriginal:  token.AccessToken,
-		RefreshToken:         newToken.RefreshToken,
+		RefreshToken:         savedToken.RefreshToken,
 		RefreshTokenOriginal: token.RefreshToken,
 		ExpiresAt:            savedToken.ExpiresAt.Unix(),
-	})
-}
-
-// RefreshTokenHandler
-func (h *Handler) RefreshTokenHandler(w http.ResponseWriter, r *http.Request) {
-	var body struct {
-		RefreshToken string `json:"refresh_token"`
-		Provider     string `json:"provider"`
-	}
-
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		http.Error(w, `{"error": "Invalid request body"}`, http.StatusBadRequest)
-		return
-	}
-
-	if body.RefreshToken == "" || body.Provider == "" {
-		http.Error(w, `{"error": "Missing refresh_token or provider"}`, http.StatusBadRequest)
-		return
-	}
-
-	token, err := h.repo.TokenRepository().RefreshAccessToken(body.RefreshToken, false)
-	if err != nil || token == nil {
-		http.Error(w, `{"error": "Invalid or expired refresh token"}`, http.StatusUnauthorized)
-		return
-	}
-
-	providerConfig, err := getProviderConfig(body.Provider, h.cfg.Authorization)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-
-	data := url.Values{}
-	switch body.Provider {
-	case models.PROVIDER_FB:
-		data.Set("client_id", providerConfig.ClientID)
-		data.Set("client_secret", providerConfig.ClientSecret)
-		data.Set("refresh_token", token.RefreshToken)
-		data.Set("grant_type", "fb_exchange_token")
-		data.Set("fb_exchange_token", token.AccessToken)
-	case models.PROVIDER_GOOGLE,
-		models.PROVIDER_APPLE:
-		data.Set("client_id", providerConfig.ClientID)
-		data.Set("client_secret", providerConfig.ClientSecret)
-		data.Set("refresh_token", token.RefreshToken)
-		data.Set("grant_type", "refresh_token")
-		data.Set("prompt", "consent")
-		data.Set("access_type", "offline")
-	}
-
-	resp, err := http.PostForm(providerConfig.TokenURL, data)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("failed to exchange code for token: %w", err), http.StatusBadRequest)
-		return
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		http.Error(w, fmt.Sprintf("token exchange failed: %s, response: %s", resp.Status, string(body)), http.StatusBadRequest)
-		return
-	}
-
-	bodyBytes, err := io.ReadAll(resp.Body)
-	if err != nil {
-		http.Error(w, `{"error": "Failed to read response body"}`, http.StatusBadRequest)
-		return
-	}
-
-	var bodyResponse map[string]interface{}
-	if err = json.Unmarshal(bodyBytes, &bodyResponse); err != nil {
-		http.Error(w, fmt.Sprintf("failed to decode token response: %w", err.Error()), http.StatusBadRequest)
-		return
-	}
-
-	var tokenResponse providers.TokenResponse
-	if err = json.Unmarshal(bodyBytes, &tokenResponse); err != nil {
-		http.Error(w, fmt.Sprintf("failed to decode token response: %w", err.Error()), http.StatusBadRequest)
-		return
-	}
-
-	dataJSON, err := util.UserInfoToJSON(bodyResponse)
-	if err != nil {
-		http.Error(w, `{"error": "Unable to marshal user info"}`, http.StatusInternalServerError)
-		return
-	}
-
-	updatedToken, err := h.repo.TokenRepository().CreateOrUpdateToken(models.Token{
-		ID:           token.ID,
-		UserID:       token.UserID,
-		Provider:     token.Provider,
-		AccessToken:  token.AccessToken,
-		RefreshToken: token.RefreshToken,
-		ExpirationIn: token.ExpirationIn,
-		ExpiresAt:    time.Now().Add(time.Duration(token.ExpirationIn) * time.Second),
-		Data:         string(dataJSON),
-		UpdatedAt:    time.Time{},
-	})
-	if err != nil {
-		http.Error(w, `{"error": "Failed to save user info"}`, http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(models.TokenServiceResponse{
-		UserID:       updatedToken.UserID,
-		AccessToken:  updatedToken.AccessToken,
-		RefreshToken: updatedToken.RefreshToken,
-		ExpirationIn: updatedToken.ExpirationIn,
-		ExpiresAt:    updatedToken.ExpiresAt,
-		Data:         updatedToken.Data,
 	})
 }
 
