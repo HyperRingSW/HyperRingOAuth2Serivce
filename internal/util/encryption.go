@@ -6,6 +6,7 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"errors"
+	"io"
 )
 
 func getSecretKey() ([]byte, error) {
@@ -26,7 +27,7 @@ func Encrypt(plainText string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	
+
 	aesGCM, err := cipher.NewGCM(block)
 	if err != nil {
 		return "", err
@@ -78,21 +79,11 @@ func Decrypt(encryptedText string) (string, error) {
 	return string(plainText), nil
 }
 
-/*package util
-
-import (
-	"crypto/aes"
-	"crypto/cipher"
-	"crypto/rand"
-	"encoding/base64"
-	"errors"
-	"io"
-)
-
-var secretKey = []byte("12345678901234567890123456789012") //TODO to .env
-
-// Encrypt
-func Encrypt(plainText string) (string, error) {
+func EncryptCFB(plainText string) (string, error) {
+	secretKey, err := getSecretKey()
+	if err != nil {
+		return "", err
+	}
 	//create AES block
 	block, err := aes.NewCipher(secretKey)
 	if err != nil {
@@ -120,7 +111,12 @@ func Encrypt(plainText string) (string, error) {
 }
 
 // Decrypt
-func Decrypt(encryptedText string) (string, error) {
+func DecryptCFB(encryptedText string) (string, error) {
+	secretKey, err := getSecretKey()
+	if err != nil {
+		return "", err
+	}
+
 	//base64 decode
 	cipherText, err := base64.StdEncoding.DecodeString(encryptedText)
 	if err != nil {
@@ -146,4 +142,3 @@ func Decrypt(encryptedText string) (string, error) {
 
 	return string(cipherText), nil
 }
-*/
