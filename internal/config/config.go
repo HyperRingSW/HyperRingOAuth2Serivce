@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/caarlos0/env/v9"
 	"github.com/joho/godotenv"
+	"os"
 )
 
 type AppConfig struct {
@@ -69,14 +70,28 @@ const envFile = ".env"
 func LoadConfig() (*Config, error) {
 	var cfg Config
 
-	err := godotenv.Load(envFile)
-	if err != nil {
-		fmt.Println("No .env file found, loading from environment variables.")
+	if CheckFileExistence(envFile) {
+		err := godotenv.Load(envFile)
+		if err != nil {
+			fmt.Println("No .env file found, loading from environment variables.")
+		}
 	}
-
 	if err := env.Parse(&cfg); err != nil {
 		return nil, fmt.Errorf("failed to parse environment variables: %w", err)
 	}
 
 	return &cfg, nil
+}
+
+func CheckFileExistence(path string) bool {
+	if path == "" {
+		return false
+	}
+
+	info, err := os.Stat(path)
+	if err != nil {
+		return false
+	}
+
+	return !info.IsDir()
 }
