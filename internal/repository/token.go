@@ -17,6 +17,22 @@ func (repo *PostgresDB) TokenRepository() dependency.TokenRepository {
 }
 
 func (repo *PostgresDB) CreateOrUpdateToken(token models.Token) (*models.Token, error) {
+	//Шифруем токены
+	encryptedAccessToken, err := util.Encrypt(token.AccessToken)
+	if err != nil {
+		return nil, err
+	}
+	token.AccessToken = encryptedAccessToken
+
+	//Шифруем токены
+	if token.RefreshToken != "" {
+		encryptedRefreshToken, err := util.Encrypt(token.RefreshToken)
+		if err != nil {
+			return nil, err
+		}
+		token.RefreshToken = encryptedRefreshToken
+	}
+
 	newToken := models.Token{
 		ID:           token.ID,
 		UserID:       token.UserID,
@@ -36,29 +52,55 @@ func (repo *PostgresDB) CreateOrUpdateToken(token models.Token) (*models.Token, 
 			return nil, errors.New("error create token: " + err.Error())
 		}
 	} else {
-		encryptedAccessToken, err := util.Encrypt(token.AccessToken)
-		if err != nil {
-			return nil, err
-		}
-		//token.AccessToken = encryptedAccessToken
-
-		encryptedRefreshToken, err := util.Encrypt(token.RefreshToken)
-		if err != nil {
-			return nil, err
-		}
-		//token.RefreshToken = encryptedRefreshToken
-
 		updates := map[string]interface{}{
-			"access_token":  encryptedAccessToken,
-			"refresh_token": encryptedRefreshToken,
+			"access_token":  token.AccessToken,
+			"refresh_token": token.RefreshToken,
 			"expiration_in": token.ExpirationIn,
 			"expires_at":    token.ExpiresAt,
 			"updated_at":    token.UpdatedAt,
+			"data":          newToken.Data,
 		}
 
 		if err := repo.db.Model(&token).Where("user_id = ?", token.UserID).Updates(updates).Error; err != nil {
 			return nil, errors.New("error update token: " + err.Error())
 		}
+	}
+
+	return &token, nil
+}
+
+func (repo *PostgresDB) UpdateToken(token models.Token, provider string) (*models.Token, error) {
+	//Шифруем токены
+	encryptedAccessToken, err := util.Encrypt(token.AccessToken)
+	if err != nil {
+		return nil, err
+	}
+	token.AccessToken = encryptedAccessToken
+
+	encryptedRefreshToken := ""
+	if token.RefreshToken != "" {
+		encryptedRefreshToken, err = util.Encrypt(token.RefreshToken)
+		if err != nil {
+			return nil, err
+		}
+		token.RefreshToken = encryptedRefreshToken
+	}
+
+	updates := map[string]interface{}{
+		"access_token":  encryptedAccessToken,
+		"refresh_token": token.RefreshToken,
+		"expiration_in": token.ExpirationIn,
+		"expires_at":    token.ExpiresAt,
+		"updated_at":    token.UpdatedAt,
+		"data":          token.Data,
+	}
+
+	if provider == models.PROVIDER_GOOGLE || provider == models.PROVIDER_FB {
+		delete(updates, "refresh_token")
+	}
+
+	if err := repo.db.Model(&token).Where("user_id = ?", token.UserID).Updates(updates).Error; err != nil {
+		return nil, errors.New("error update token: " + err.Error())
 	}
 
 	return &token, nil
@@ -90,7 +132,7 @@ func (repo *PostgresDB) InvalidateToken(accessToken string) error {
 	return repo.db.Where("access_token = ?", encryptedToken).Delete(&models.Token{}).Error
 }
 
-// RefreshAccessToken set decrypted access and refresh tokens
+// RefreshAccessToken
 func (repo *PostgresDB) RefreshAccessToken(refreshToken string, needEncrypt bool) (*models.Token, error) {
 	if needEncrypt {
 		encrypt, err := util.Encrypt(refreshToken)
@@ -105,18 +147,6 @@ func (repo *PostgresDB) RefreshAccessToken(refreshToken string, needEncrypt bool
 	if result.RowsAffected == 0 {
 		return nil, nil
 	}
-
-	decryptAccess, err := util.Decrypt(token.AccessToken)
-	if err != nil {
-		return nil, err
-	}
-	token.AccessToken = decryptAccess
-
-	decryptRefresh, err := util.Decrypt(token.RefreshToken)
-	if err != nil {
-		return nil, err
-	}
-	token.RefreshToken = decryptRefresh
 
 	return &token, nil
 }
