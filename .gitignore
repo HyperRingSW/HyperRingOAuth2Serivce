@@ -2,3 +2,4 @@ bin/
 vendor/
 .env
 frontend/node_modules
+cmd/.DS_Store
