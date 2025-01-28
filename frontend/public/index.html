@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OAuth2 Authorization Demo</title>
+</head>
+<body>
+<h1>OAuth2 Authorization Demo</h1>
+
+<div>
+    <h2>Login with PKCE:</h2>
+    <div>
+        <button onclick="loginWithProvider('google_pkce')">Login with Google</button>
+        <button onclick="loginWithProvider('facebook_pkce')">Login with Facebook</button>
+        <button onclick="loginWithProvider('apple_pkce')">Login with Apple</button>
+    </div>
+</div>
+<div>
+    <h2>SignUp with Providers:</h2>
+    <div>
+        <button onclick="signupWithProvider('google')">SignUp with Google</button>
+        <button onclick="signupWithProvider('facebook')">SignUp with Facebook</button>
+        <button onclick="signupWithProvider('apple')">SignUp with Apple</button>
+    </div>
+</div>
+<div>
+    <h2>SignIn with Providers:</h2>
+    <div>
+        <button onclick="signinWithProvider('google')">SignIn with Google</button>
+        <button onclick="signinWithProvider('facebook')">SignIn with Facebook</button>
+        <button onclick="signinWithProvider('apple')">SignIn with Apple</button>
+    </div>
+</div>
+<div>
+    <h2>Refresh token with Providers:</h2>
+    <div>
+        <button onclick="refreshTokenWithProvider('google')">Google</button>
+        <button onclick="refreshTokenWithProvider('facebook')">Facebook</button>
+        <button onclick="refreshTokenWithProvider('apple')">Apple</button>
+    </div>
+</div>
+
+<div>
+    <h2>User Actions:</h2>
+    <button onclick="getUserProfile()">Get Profile</button>
+    <button onclick="backupUserData()">Backup Data</button>
+    <button onclick="restoreUserData()">Restore Data</button>
+</div>
+
+<div>
+    <h3>Response:</h3>
+    <pre id="response"></pre>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>

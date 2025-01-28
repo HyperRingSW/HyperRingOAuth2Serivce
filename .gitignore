@@ -1,0 +1,4 @@
+bin/
+vendor/
+.env
+frontend/node_modules

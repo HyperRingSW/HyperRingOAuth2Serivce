@@ -1,0 +1,557 @@
+openapi: 3.0.0
+info:
+  title: OAuth2 Server API
+  version: "1.0.0"
+  description: API для управления OAuth2 аутентификацией и авторизацией.
+servers:
+  - url: http://localhost:3000
+paths:
+  /auth/signup:
+    post:
+      summary: Регистрация нового пользователя
+      description: SingUp with provider
+      operationId: SignUpHandler
+      requestBody:
+        description: Данные для регистрации
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SignUpRequest'
+      responses:
+        '200':
+          description: Успешная регистрация
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPError'
+        '500':
+          description: Внутренняя ошибка сервера
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPError'
+  /auth/signin:
+    post:
+      summary: Аутентификация пользователя
+      description: SignIn with provider
+      operationId: SignInHandler
+      requestBody:
+        description: Данные для аутентификации
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SignInRequest'
+      responses:
+        '200':
+          description: Успешная аутентификация
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          description: Неверные данные запроса
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPError'
+        '401':
+          description: Неавторизованный
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPError'
+        '500':
+          description: Внутренняя ошибка сервера
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPError'
+  /auth/redirect:
+    get:
+      summary: Перенаправление на страницу провайдера
+      description: Redirect to provider's auth page
+      operationId: RedirectHandler
+      parameters:
+        - name: provider
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Название провайдера
+        - name: redirect_uri
+          in: query
+          required: true
+          schema:
+            type: string
+          description: URI перенаправления
+        - name: code_challenge
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Код-верификатор для PKCE
+      responses:
+        '302':
+          description: Перенаправление
+        '400':
+          description: Неверные параметры запроса
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPError'
+  /auth/callback:
+    post:
+      summary: Обработка колбэка от провайдера
+      description: Callback from provider after authentication
+      operationId: CallbackHandler
+      requestBody:
+        description: Данные колбэка
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CallbackRequest'
+      responses:
+        '200':
+          description: Успешная обработка колбэка
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          description: Неверные данные запроса
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPError'
+        '401':
+          description: Неавторизованный
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPError'
+        '500':
+          description: Внутренняя ошибка сервера
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPError'
+  /auth/token/refresh:
+    post:
+      summary: Обновление токена
+      description: Refresh access token using refresh token
+      operationId: RefreshTokenHandler
+      requestBody:
+        description: Данные для обновления токена
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshTokenRequest'
+      responses:
+        '200':
+          description: Токен обновлён
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenServiceResponse'
+        '400':
+          description: Неверные данные запроса
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPError'
+        '401':
+          description: Неавторизованный
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPError'
+        '500':
+          description: Внутренняя ошибка сервера
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPError'
+  /auth/logout:
+    post:
+      summary: Выход из системы
+      description: Logout user by invalidating access token
+      operationId: LogoutHandler
+      requestBody:
+        description: Данные для выхода
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LogoutRequest'
+      responses:
+        '200':
+          description: Успешный выход
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LogoutSuccess'
+        '400':
+          description: Неверные данные запроса
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPError'
+        '500':
+          description: Внутренняя ошибка сервера
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPError'
+  /user/profile:
+    get:
+      summary: Получение профиля пользователя
+      description: Get user profile information
+      operationId: GetUserProfile
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Успешное получение профиля
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile'
+        '401':
+          description: Неавторизованный
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPError'
+    patch:
+      summary: Обновление профиля пользователя
+      description: Update user profile information
+      operationId: UpdateUserProfile
+      security:
+        - BearerAuth: []
+      requestBody:
+        description: Данные для обновления профиля
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUserProfileRequest'
+      responses:
+        '200':
+          description: Успешное обновление профиля
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile'
+        '400':
+          description: Неверные данные запроса
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPError'
+        '401':
+          description: Неавторизованный
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPError'
+        '500':
+          description: Внутренняя ошибка сервера
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPError'
+  /user/account:
+    delete:
+      summary: Удаление аккаунта пользователя
+      description: Delete user account
+      operationId: DeleteUserAccount
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Успешное удаление аккаунта
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LogoutSuccess'
+        '401':
+          description: Неавторизованный
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPError'
+        '500':
+          description: Внутренняя ошибка сервера
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPError'
+  /user/backup:
+    get:
+      summary: Резервное копирование данных пользователя
+      description: Backup user data
+      operationId: BackupUserData
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Успешное резервное копирование
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BackupResponse'
+        '401':
+          description: Неавторизованный
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPError'
+        '500':
+          description: Внутренняя ошибка сервера
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPError'
+  /user/restore:
+    post:
+      summary: Восстановление данных пользователя
+      description: Restore user data
+      operationId: RestoreUserData
+      security:
+        - BearerAuth: []
+      requestBody:
+        description: Данные для восстановления
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RestoreRequest'
+      responses:
+        '200':
+          description: Успешное восстановление
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RestoreResponse'
+        '400':
+          description: Неверные данные запроса
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPError'
+        '401':
+          description: Неавторизованный
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPError'
+        '500':
+          description: Внутренняя ошибка сервера
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPError'
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    SignUpRequest:
+      type: object
+      properties:
+        code:
+          type: string
+          example: "auth_code_123"
+        redirect_uri:
+          type: string
+          example: "http://localhost:3000/callback"
+        provider:
+          type: string
+          example: "google"
+      required:
+        - code
+        - redirect_uri
+        - provider
+    SignInRequest:
+      type: object
+      properties:
+        code:
+          type: string
+          example: "auth_code_123"
+        redirect_uri:
+          type: string
+          example: "http://localhost:3000/callback"
+        provider:
+          type: string
+          example: "google"
+        code_verifier:
+          type: string
+          example: "code_verifier_123"
+      required:
+        - code
+        - redirect_uri
+        - provider
+        - code_verifier
+    CallbackRequest:
+      type: object
+      properties:
+        code:
+          type: string
+          example: "callback_code_123"
+        redirect_uri:
+          type: string
+          example: "http://localhost:3000/callback"
+        provider:
+          type: string
+          example: "google"
+        code_verifier:
+          type: string
+          example: "code_verifier_123"
+      required:
+        - code
+        - redirect_uri
+        - provider
+        - code_verifier
+    RefreshTokenRequest:
+      type: object
+      properties:
+        refresh_token:
+          type: string
+          example: "refresh_token_123"
+        provider:
+          type: string
+          example: "google"
+      required:
+        - refresh_token
+        - provider
+    LogoutRequest:
+      type: object
+      properties:
+        access_token:
+          type: string
+          example: "access_token_123"
+      required:
+        - access_token
+    LogoutSuccess:
+      type: object
+      properties:
+        message:
+          type: string
+          example: "logged out"
+    AuthResponse:
+      type: object
+      properties:
+        jwt_token:
+          type: string
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6..."
+        access_token:
+          type: string
+          example: "access_token_123"
+        access_token_original:
+          type: string
+          example: "original_access_token_123"
+        refresh_token:
+          type: string
+          example: "refresh_token_123"
+        refresh_token_original:
+          type: string
+          example: "original_refresh_token_123"
+        expires_at:
+          type: integer
+          format: int64
+          example: 1700000000
+    TokenServiceResponse:
+      type: object
+      properties:
+        user_id:
+          type: integer
+          example: 1
+        access_token:
+          type: string
+          example: "new_access_token_123"
+        refresh_token:
+          type: string
+          example: "new_refresh_token_123"
+        expiration_in:
+          type: integer
+          example: 3600
+        expires_at:
+          type: string
+          format: date-time
+          example: "2025-01-28T10:54:44Z"
+        data:
+          type: string
+          example: "additional data"
+    UserProfile:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        email:
+          type: string
+          example: "user@example.com"
+        name:
+          type: string
+          example: "John Doe"
+      required:
+        - id
+        - email
+        - name
+    UpdateUserProfileRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          example: "new_email@example.com"
+        name:
+          type: string
+          example: "Jane Doe"
+      required:
+        - email
+        - name
+    BackupResponse:
+      type: object
+      properties:
+        backup_id:
+          type: string
+          example: "backup_123"
+        status:
+          type: string
+          example: "completed"
+    RestoreRequest:
+      type: object
+      properties:
+        backup_id:
+          type: string
+          example: "backup_123"
+      required:
+        - backup_id
+    RestoreResponse:
+      type: object
+      properties:
+        restore_id:
+          type: string
+          example: "restore_123"
+        status:
+          type: string
+          example: "completed"
+    HTTPError:
+      type: object
+      properties:
+        error:
+          type: string
+          example: "Неверные данные запроса"
+      required:
+        - error
