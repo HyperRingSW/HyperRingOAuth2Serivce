@@ -224,7 +224,7 @@ async function authenticateWithProvider(provider, endpoint) {
 
 async function refreshTokenWithProvider(provider) {
     const refreshToken = localStorage.getItem("refresh_token");
-    if (refreshToken == "") {
+    if (refreshToken == "" && provider !== "facebook") {
         document.getElementById("response").textContent = "Refresh token not found.";
         return;
     }
@@ -251,6 +251,9 @@ async function refreshTokenWithProvider(provider) {
 
         const data = await response.json();
         localStorage.setItem("access_token", data.access_token);
+        if (data.jwt_token) {
+            localStorage.setItem("jwt_token", data.jwt_token);
+        }
         document.getElementById("response").textContent = JSON.stringify(
             data,
             null,

@@ -266,7 +266,7 @@ func (h *Handler) RefreshTokenHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if body.RefreshToken == "" || body.Provider == "" {
+	if body.Provider == "" {
 		http.Error(w, `{"error": "Missing refresh_token or provider"}`, http.StatusBadRequest)
 		return
 	}
@@ -303,7 +303,6 @@ func (h *Handler) RefreshTokenHandler(w http.ResponseWriter, r *http.Request) {
 	case models.PROVIDER_FB:
 		data.Set("client_id", providerConfig.ClientID)
 		data.Set("client_secret", providerConfig.ClientSecret)
-		data.Set("refresh_token", token.RefreshToken)
 		data.Set("grant_type", "fb_exchange_token")
 		data.Set("fb_exchange_token", token.AccessToken)
 	case models.PROVIDER_GOOGLE,
@@ -374,9 +373,16 @@ func (h *Handler) RefreshTokenHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	jwt, _, err := util.GenerateJWT(token.UserID, "user")
+	if err != nil {
+		http.Error(w, `{"error": "Failed to generate JWT token"}`, http.StatusInternalServerError)
+		return
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(models.TokenServiceResponse{
+		JWTToken:     jwt,
 		UserID:       updatedToken.UserID,
 		Provider:     updatedToken.Provider,
 		AccessToken:  updatedToken.AccessToken,

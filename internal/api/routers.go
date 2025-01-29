@@ -2,15 +2,12 @@ package api
 
 import (
 	"github.com/gorilla/mux"
-	"github.com/swaggo/http-swagger"
 	"net/http"
 	"oauth2-server/internal/dependency"
 	"oauth2-server/internal/middleware"
 )
 
 func RegisterRoutes(router *mux.Router, handler dependency.Handler) { //repo dependency.Repository, cfg *config.Config
-	router.PathPrefix("/swagger/").Handler(httpSwagger.WrapHandler)
-
 	// OAuth2 маршруты
 	router.HandleFunc("/auth/signup", func(w http.ResponseWriter, r *http.Request) {
 		handler.AuthHandler().SignUpHandler(w, r)
