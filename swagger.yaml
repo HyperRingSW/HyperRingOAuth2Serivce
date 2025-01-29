@@ -458,15 +458,9 @@ components:
         access_token:
           type: string
           example: "access_token_123"
-        access_token_original:
-          type: string
-          example: "original_access_token_123"
         refresh_token:
           type: string
           example: "refresh_token_123"
-        refresh_token_original:
-          type: string
-          example: "original_refresh_token_123"
         expires_at:
           type: integer
           format: int64
@@ -487,9 +481,9 @@ components:
           type: integer
           example: 3600
         expires_at:
-          type: string
-          format: date-time
-          example: "2025-01-28T10:54:44Z"
+          type: integer
+          format: int64
+          example: 1700000000
         data:
           type: string
           example: "additional data"

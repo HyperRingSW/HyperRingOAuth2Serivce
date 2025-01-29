@@ -98,12 +98,12 @@ func (h *Handler) SignUpHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(models.AuthResponse{
-		JWTToken:             jwt,
-		AccessToken:          newToken.AccessToken,
-		AccessTokenOriginal:  token.AccessToken,
-		RefreshToken:         newToken.RefreshToken,
-		RefreshTokenOriginal: token.RefreshToken,
-		ExpiresAt:            savedToken.ExpiresAt.Unix(),
+		JWTToken:    jwt,
+		AccessToken: newToken.AccessToken,
+		//AccessTokenOriginal:  token.AccessToken,
+		RefreshToken: newToken.RefreshToken,
+		//RefreshTokenOriginal: token.RefreshToken,
+		ExpiresAt: savedToken.ExpiresAt.Unix(),
 	})
 }
 
@@ -182,12 +182,12 @@ func (h *Handler) SignInHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(models.AuthResponse{
-		JWTToken:             jwt,
-		AccessToken:          newToken.AccessToken,
-		AccessTokenOriginal:  token.AccessToken,
-		RefreshToken:         newToken.RefreshToken,
-		RefreshTokenOriginal: token.RefreshToken,
-		ExpiresAt:            savedToken.ExpiresAt.Unix(),
+		JWTToken:    jwt,
+		AccessToken: newToken.AccessToken,
+		//AccessTokenOriginal:  token.AccessToken,
+		RefreshToken: newToken.RefreshToken,
+		//RefreshTokenOriginal: token.RefreshToken,
+		ExpiresAt: savedToken.ExpiresAt.Unix(),
 	})
 }
 
@@ -354,6 +354,7 @@ func (h *Handler) RefreshTokenHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	//TODO encrypt вынести в отдельный метод
+	expiresAt := time.Now().Add(time.Duration(token.ExpirationIn) * time.Second)
 	updatedToken, err := h.repo.TokenRepository().UpdateToken(
 		models.Token{
 			ID:           token.ID,
@@ -362,7 +363,7 @@ func (h *Handler) RefreshTokenHandler(w http.ResponseWriter, r *http.Request) {
 			AccessToken:  token.AccessToken,
 			RefreshToken: token.RefreshToken,
 			ExpirationIn: token.ExpirationIn,
-			ExpiresAt:    time.Now().Add(time.Duration(token.ExpirationIn) * time.Second),
+			ExpiresAt:    expiresAt,
 			Data:         string(dataJSON),
 			UpdatedAt:    time.Now(),
 		},
@@ -381,7 +382,7 @@ func (h *Handler) RefreshTokenHandler(w http.ResponseWriter, r *http.Request) {
 		AccessToken:  updatedToken.AccessToken,
 		RefreshToken: updatedToken.RefreshToken,
 		ExpirationIn: updatedToken.ExpirationIn,
-		ExpiresAt:    updatedToken.ExpiresAt,
+		ExpiresAt:    expiresAt.Unix(),
 		Data:         updatedToken.Data,
 	})
 }
@@ -472,12 +473,12 @@ func (h *Handler) CallbackHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(models.AuthResponse{
-		JWTToken:             jwt,
-		AccessToken:          savedToken.AccessToken,
-		AccessTokenOriginal:  token.AccessToken,
-		RefreshToken:         savedToken.RefreshToken,
-		RefreshTokenOriginal: token.RefreshToken,
-		ExpiresAt:            savedToken.ExpiresAt.Unix(),
+		JWTToken:    jwt,
+		AccessToken: savedToken.AccessToken,
+		//AccessTokenOriginal:  token.AccessToken,
+		RefreshToken: savedToken.RefreshToken,
+		//RefreshTokenOriginal: token.RefreshToken,
+		ExpiresAt: savedToken.ExpiresAt.Unix(),
 	})
 }
 
