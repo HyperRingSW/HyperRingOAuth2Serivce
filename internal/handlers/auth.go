@@ -479,12 +479,10 @@ func (h *Handler) CallbackHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(models.AuthResponse{
-		JWTToken:    jwt,
-		AccessToken: savedToken.AccessToken,
-		//AccessTokenOriginal:  token.AccessToken,
+		JWTToken:     jwt,
+		AccessToken:  savedToken.AccessToken,
 		RefreshToken: savedToken.RefreshToken,
-		//RefreshTokenOriginal: token.RefreshToken,
-		ExpiresAt: savedToken.ExpiresAt.Unix(),
+		ExpiresAt:    savedToken.ExpiresAt.Unix(),
 	})
 }
 

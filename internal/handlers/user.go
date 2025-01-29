@@ -2,9 +2,9 @@ package handlers
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"oauth2-server/internal/dependency"
+	"oauth2-server/internal/models"
 	"oauth2-server/internal/util"
 	"strings"
 )
@@ -30,7 +30,6 @@ func (h *Handler) GetUserProfile(w http.ResponseWriter, r *http.Request) {
 
 	claims, err := util.ParseJWT(tokenString)
 	if err != nil {
-		fmt.Println("Error parsing JWT:", err.Error()) // Вывод ошибки для отладки
 		http.Error(w, `{"error": "Invalid token4"}`, http.StatusUnauthorized)
 		return
 	}
@@ -48,19 +47,13 @@ func (h *Handler) GetUserProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Формируем успешный ответ
-	response := map[string]interface{}{
-		"status": "success",
-		"data": map[string]interface{}{
-			"id":    user.ID,
-			"email": user.Email,
-			"name":  user.Name,
-		},
-	}
-
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(response)
+	json.NewEncoder(w).Encode(models.UserProfileGETResponse{
+		UserId: user.ID,
+		Name:   user.Email,
+		Email:  user.Name,
+	})
 }
 
 // UpdateUserProfile
