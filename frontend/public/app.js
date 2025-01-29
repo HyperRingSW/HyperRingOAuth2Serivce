@@ -222,6 +222,30 @@ async function authenticateWithProvider(provider, endpoint) {
     window.location.href = authURL;
 }
 
+async function logoutWithProvider(provider) {
+    const authURL = `${serverBaseURL}/auth/logout?provider=${provider}&user_id=1`;
+
+    try {
+        const response = await fetch(`${serverBaseURL}/auth/logout`, {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({provider: provider, user_id: 1}),
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(errorText);
+        }
+
+        document.getElementById("response").textContent = "Restore successful!";
+    } catch (error) {
+        document.getElementById("response").textContent = `Error: ${error.message}`;
+    }
+
+
+    //window.location.href = authURL;
+}
+
 async function refreshTokenWithProvider(provider) {
     const refreshToken = localStorage.getItem("refresh_token");
     if (refreshToken == "" && provider !== "facebook") {
@@ -240,14 +264,6 @@ async function refreshTokenWithProvider(provider) {
             const errorText = await response.text();
             throw new Error(errorText);
         }
-
-        //const data = await response.json();
-        //console.log("Token refreshed:", data);
-
-        // Сохраняем новый access_token
-        //localStorage.setItem("access_token", data.access_token);
-
-        //document.getElementById("response").textContent = "Token refreshed successfully!";
 
         const data = await response.json();
         localStorage.setItem("access_token", data.access_token);

@@ -18,6 +18,7 @@ type TokenRepository interface {
 	UpdateToken(token models.Token, provider string) (*models.Token, error)
 	CreateToken(token *models.Token) error
 	InvalidateToken(accessToken string) error
+	UserToken(userId int) *models.Token
 	RefreshAccessToken(refreshToken string, needEncrypt bool) (*models.Token, error)
 }
 

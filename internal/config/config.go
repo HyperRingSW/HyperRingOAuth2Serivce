@@ -37,18 +37,21 @@ type GoogleAuthConfig struct {
 	OAuthProviderConfig
 	TokenURL    string `env:"OAUTH_TOKEN_URL" env-default:"https://oauth2.googleapis.com/token"`
 	UserInfoURL string `env:"OAUTH_USER_INFO_URL" env-default:"https://www.googleapis.com/oauth2/v3/userinfo"`
+	RevokeURL   string `env:"OAUTH_REVOKE_URL" env-default:"https://oauth2.googleapis.com/revoke"`
 }
 
 type AppleAuthConfig struct {
 	OAuthProviderConfig
 	TokenURL    string `env:"OAUTH_TOKEN_URL" env-default:"https://oauth2.googleapis.com/token"`
 	UserInfoURL string `env:"OAUTH_USER_INFO_URL" env-default:"https://www.googleapis.com/oauth2/v3/userinfo"`
+	RevokeURL   string `env:"OAUTH_REVOKE_URL" env-default:"https://www.facebook.com/logout.php"`
 }
 
 type FacebookAuthConfig struct {
 	OAuthProviderConfig
 	TokenURL    string `env:"OAUTH_TOKEN_URL" env-default:"https://graph.facebook.com/v12.0/oauth/access_token"`
 	UserInfoURL string `env:"OAUTH_USER_INFO_URL" env-default:"https://www.googleapis.com/oauth2/v3/userinfo"`
+	RevokeURL   string `env:"OAUTH_REVOKE_URL" env-default:"https://www.googleapis.com/oauth2/v3/userinfo"`
 }
 type Authorization struct {
 	JWTSecret string             `env:"JWT_SECRET" env-default:"86194778010"`

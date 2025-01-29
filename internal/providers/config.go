@@ -6,4 +6,5 @@ type ProviderConfig struct {
 	ClientSecret string
 	TokenURL     string
 	UserInfoURL  string
+	RevokeURL    string
 }
