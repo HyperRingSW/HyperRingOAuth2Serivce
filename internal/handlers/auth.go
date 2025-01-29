@@ -488,19 +488,73 @@ func (h *Handler) CallbackHandler(w http.ResponseWriter, r *http.Request) {
 
 // LogoutHandler
 func (h *Handler) LogoutHandler(w http.ResponseWriter, r *http.Request) {
+	// Устанавливаем заголовок Content-Type
+	w.Header().Set("Content-Type", "application/json")
+
 	var body struct {
-		AccessToken string `json:"access_token"`
+		UserID   int    `json:"user_id"`
+		Provider string `json:"provider"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.AccessToken == "" {
+
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.UserID == 0 || body.Provider == "" {
 		http.Error(w, `{"error": "Invalid request body"}`, http.StatusBadRequest)
 		return
 	}
 
-	if err := h.repo.TokenRepository().InvalidateToken(body.AccessToken); err != nil {
+	token := h.repo.TokenRepository().UserToken(body.UserID)
+	if token == nil {
+		http.Error(w, `{"error": "Token not found"}`, http.StatusBadRequest)
+		return
+	}
+
+	providerConfig, err := getProviderConfig(body.Provider, h.cfg.Authorization)
+	if err != nil {
+		http.Error(w, `{"error": "Invalid provider"}`, http.StatusBadRequest)
+		return
+	}
+
+	decryptAccess, err := util.Decrypt(token.AccessToken)
+	if err != nil {
+		http.Error(w, `{"error": "Invalid or expired access token"}`, http.StatusUnauthorized)
+		return
+	}
+
+	// Формируем данные для запроса ревокации
+	data := url.Values{}
+	switch body.Provider {
+	case models.PROVIDER_FB:
+		data.Set("next", "http://localhost:3000/")
+		data.Set("access_token", decryptAccess)
+	case models.PROVIDER_GOOGLE,
+		models.PROVIDER_APPLE:
+		data.Set("token", decryptAccess)
+	default:
+		http.Error(w, `{"error": "Unsupported provider"}`, http.StatusBadRequest)
+		return
+	}
+
+	resp, err := http.PostForm(providerConfig.RevokeURL, data)
+	if err != nil {
+		fmt.Printf("Error revoking token: %v\n", err)
+		http.Error(w, `{"error": "Failed to revoke token"}`, http.StatusInternalServerError)
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		responseBody, _ := io.ReadAll(resp.Body)
+		fmt.Printf("Token revocation failed: %s, response: %s\n", resp.Status, string(responseBody))
+		http.Error(w, `{"error": "Token revocation failed"}`, http.StatusBadRequest)
+		return
+	}
+
+	if err := h.repo.TokenRepository().InvalidateToken(token.AccessToken); err != nil {
+		fmt.Printf("Error invalidating token: %v\n", err)
 		http.Error(w, `{"error": "Failed to logout"}`, http.StatusInternalServerError)
 		return
 	}
 
+	// Отправляем успешный ответ
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]string{"status": "logged out"})
 }
@@ -514,6 +568,7 @@ func getProviderConfig(provider string, cfg config.Authorization) (providers.Pro
 			ClientSecret: cfg.Google.ClientSecret,
 			TokenURL:     cfg.Google.TokenURL,
 			UserInfoURL:  cfg.Google.UserInfoURL,
+			RevokeURL:    cfg.Google.RevokeURL,
 		}, nil
 	case models.PROVIDER_FB:
 		return providers.ProviderConfig{
@@ -521,6 +576,7 @@ func getProviderConfig(provider string, cfg config.Authorization) (providers.Pro
 			ClientSecret: cfg.Facebook.ClientSecret,
 			TokenURL:     cfg.Facebook.TokenURL,
 			UserInfoURL:  cfg.Facebook.UserInfoURL,
+			RevokeURL:    cfg.Facebook.RevokeURL,
 		}, nil
 	case models.PROVIDER_APPLE:
 		return providers.ProviderConfig{
@@ -528,6 +584,7 @@ func getProviderConfig(provider string, cfg config.Authorization) (providers.Pro
 			ClientSecret: cfg.Apple.ClientSecret,
 			TokenURL:     cfg.Apple.TokenURL,
 			UserInfoURL:  cfg.Apple.UserInfoURL,
+			RevokeURL:    cfg.Apple.RevokeURL,
 		}, nil
 	default:
 		return providers.ProviderConfig{}, fmt.Errorf("unsupported provider: %s", provider)

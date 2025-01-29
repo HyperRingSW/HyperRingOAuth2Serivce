@@ -125,11 +125,18 @@ func (repo *PostgresDB) CreateToken(token *models.Token) error {
 
 // InvalidateToken
 func (repo *PostgresDB) InvalidateToken(accessToken string) error {
-	encryptedToken, err := util.Encrypt(accessToken)
-	if err != nil {
-		return err
+	return repo.db.Where("access_token = ?", accessToken).Delete(&models.Token{}).Error
+}
+
+func (repo *PostgresDB) UserToken(userId int) *models.Token {
+	token := &models.Token{}
+
+	result := repo.db.Where("user_id = ?", userId).First(&token)
+	if result.RowsAffected != 0 {
+		return token
 	}
-	return repo.db.Where("access_token = ?", encryptedToken).Delete(&models.Token{}).Error
+
+	return nil
 }
 
 // RefreshAccessToken
