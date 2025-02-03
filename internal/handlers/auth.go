@@ -25,7 +25,7 @@ func (h *Handler) AuthHandler() dependency.AuthHandler {
 	}
 }
 
-func (h *Handler) AuthsHandler(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) AuthUserHandler(w http.ResponseWriter, r *http.Request) {
 	// Ожидаем, что клиент пришлёт данные авторизации.
 	// Для Google и Apple используется id_token (JWT), для Facebook – access_token.
 	var body struct {

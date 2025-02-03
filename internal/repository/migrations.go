@@ -13,7 +13,14 @@ func RunMigrations(db *gorm.DB) error {
 	}
 
 	// Выполняем миграции
-	if err := db.AutoMigrate(&models.UserAuth{}, &models.Token{}); err != nil {
+	if err := db.AutoMigrate(
+		&models.UserAuth{},
+		&models.Token{},
+		&models.Ring{},
+		&models.DeviceDescription{},
+		&models.RingBatch{},
+		&models.UserRing{},
+	); err != nil {
 		return fmt.Errorf("ошибка миграции: %w", err)
 	}
 

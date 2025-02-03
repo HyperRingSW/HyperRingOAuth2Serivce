@@ -6,18 +6,18 @@ info:
 servers:
   - url: http://localhost:3000
 paths:
-  /auth/signup:
+  /auth/user:
     post:
-      summary: User Registration
-      description: SignUp with provider
-      operationId: SignUpHandler
+      summary: Authenticate with providers (Google, Apple, Facebook)
+      description: |
+        This endpoint retrieves JWT and etc tokens
+      operationId: authenticateUser
       requestBody:
-        description: Registration data
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/SignUpRequest'
+              $ref: '#/components/schemas/AuthsRequest'
       responses:
         '200':
           description: Successful registration
@@ -30,113 +30,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPError'
-        '500':
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPError'
-  /auth/signin:
-    post:
-      summary: User Authentication
-      description: SignIn with provider
-      operationId: SignInHandler
-      requestBody:
-        description: Authentication data
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/SignInRequest'
-      responses:
-        '200':
-          description: Successful authentication
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/AuthResponse'
-        '400':
-          description: Invalid request data
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPError'
-        '401':
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPError'
-        '500':
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPError'
-  /auth/redirect:
-    get:
-      summary: Redirect to Provider's Auth Page
-      description: Redirect to provider's auth page
-      operationId: RedirectHandler
-      parameters:
-        - name: provider
-          in: query
-          required: true
-          schema:
-            type: string
-          description: Provider name
-        - name: redirect_uri
-          in: query
-          required: true
-          schema:
-            type: string
-          description: Redirect URI
-        - name: code_challenge
-          in: query
-          required: false
-          schema:
-            type: string
-          description: Code verifier for PKCE
-      responses:
-        '302':
-          description: Redirect
-        '400':
-          description: Invalid request parameters
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPError'
-  /auth/callback:
-    post:
-      summary: Callback Handler
-      description: Callback from provider after authentication
-      operationId: CallbackHandler
-      requestBody:
-        description: Callback data
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/CallbackRequest'
-      responses:
-        '200':
-          description: Successful callback processing
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/AuthResponse'
-        '400':
-          description: Invalid request data
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPError'
-        '401':
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPError'
+          description: HTTP Error
         '500':
           description: Internal server error
           content:
@@ -217,7 +111,7 @@ paths:
       description: Get user profile information
       operationId: GetUserProfile
       security:
-        - BearerAuth: []
+        - BearerAuth: [ ]
       responses:
         '200':
           description: Successful profile retrieval
@@ -236,7 +130,7 @@ paths:
       description: Update user profile information
       operationId: UpdateUserProfile
       security:
-        - BearerAuth: []
+        - BearerAuth: [ ]
       requestBody:
         description: Profile update data
         required: true
@@ -269,97 +163,6 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPError'
-  /user/account:
-    delete:
-      summary: Delete User Account
-      description: Delete user account
-      operationId: DeleteUserAccount
-      security:
-        - BearerAuth: []
-      responses:
-        '200':
-          description: Successful account deletion
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/LogoutSuccess'
-        '401':
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPError'
-        '500':
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPError'
-  /user/backup:
-    get:
-      summary: User Data Backup
-      description: Backup user data
-      operationId: BackupUserData
-      security:
-        - BearerAuth: []
-      responses:
-        '200':
-          description: Successful backup
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/BackupResponse'
-        '401':
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPError'
-        '500':
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPError'
-  /user/restore:
-    post:
-      summary: User Data Restore
-      description: Restore user data
-      operationId: RestoreUserData
-      security:
-        - BearerAuth: []
-      requestBody:
-        description: Restore data
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/RestoreRequest'
-      responses:
-        '200':
-          description: Successful restoration
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/RestoreResponse'
-        '400':
-          description: Invalid request data
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPError'
-        '401':
-          description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPError'
-        '500':
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPError'
 components:
   securitySchemes:
     BearerAuth:
@@ -367,62 +170,26 @@ components:
       scheme: bearer
       bearerFormat: JWT
   schemas:
-    SignUpRequest:
+    AuthsRequest:
       type: object
       properties:
-        code:
-          type: string
-          example: "auth_code_123"
-        redirect_uri:
-          type: string
-          example: "http://localhost:3000/callback"
         provider:
           type: string
-          example: "google"
-      required:
-        - code
-        - redirect_uri
-        - provider
-    SignInRequest:
-      type: object
-      properties:
-        code:
+          enum: [ google, apple, facebook ]
+          description: Provider name
+          example: google
+        id_token:
           type: string
-          example: "auth_code_123"
-        redirect_uri:
+          description: ID token (Google and Apple)
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+        access_token:
           type: string
-          example: "http://localhost:3000/callback"
-        provider:
+          description: Access token (Facebook and Google)
+          example: "EAAJZC..."
+        refresh_token:
           type: string
-          example: "google"
-        code_verifier:
-          type: string
-          example: "code_verifier_123"
-      required:
-        - code
-        - redirect_uri
-        - provider
-        - code_verifier
-    CallbackRequest:
-      type: object
-      properties:
-        code:
-          type: string
-          example: "callback_code_123"
-        redirect_uri:
-          type: string
-          example: "http://localhost:3000/callback"
-        provider:
-          type: string
-          example: "google"
-        code_verifier:
-          type: string
-          example: "code_verifier_123"
-      required:
-        - code
-        - redirect_uri
-        - provider
-        - code_verifier
+          description: Refresh token (only Google)
+          example: "1//0gF..."
     RefreshTokenRequest:
       type: object
       properties:
@@ -515,32 +282,6 @@ components:
       required:
         - email
         - name
-    BackupResponse:
-      type: object
-      properties:
-        backup_id:
-          type: string
-          example: "backup_123"
-        status:
-          type: string
-          example: "completed"
-    RestoreRequest:
-      type: object
-      properties:
-        backup_id:
-          type: string
-          example: "backup_123"
-      required:
-        - backup_id
-    RestoreResponse:
-      type: object
-      properties:
-        restore_id:
-          type: string
-          example: "restore_123"
-        status:
-          type: string
-          example: "completed"
     HTTPError:
       type: object
       properties:
