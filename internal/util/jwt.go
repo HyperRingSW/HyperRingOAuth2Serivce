@@ -3,14 +3,12 @@ package util
 import (
 	"errors"
 	"github.com/golang-jwt/jwt/v5"
-	"time"
 )
 
 var jwtSecret = []byte("86194778010")
 
 // GenerateJWT
-func GenerateJWT(userID uint, role string) (string, int64, error) {
-	expirationTime := time.Now().Add(1 * time.Minute).Unix() //TODO to config
+func GenerateJWT(userID uint, role string, expirationTime int64) (string, int64, error) {
 	claims := jwt.MapClaims{
 		"user_id": userID,
 		"role":    role,
@@ -43,5 +41,5 @@ func ParseJWT(tokenString string) (jwt.MapClaims, error) {
 		return claims, nil
 	}
 
-	return nil, errors.New("invalid token2")
+	return nil, errors.New("invalid token")
 }

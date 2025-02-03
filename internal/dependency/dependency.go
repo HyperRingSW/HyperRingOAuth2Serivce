@@ -28,19 +28,17 @@ type Repository interface {
 }
 
 type AuthHandler interface {
-	SignUpHandler(w http.ResponseWriter, r *http.Request)
-	SignInHandler(w http.ResponseWriter, r *http.Request)
-	RedirectHandler(w http.ResponseWriter, r *http.Request)
-	CallbackHandler(w http.ResponseWriter, r *http.Request)
+	AuthsHandler(w http.ResponseWriter, r *http.Request)
 	RefreshTokenHandler(w http.ResponseWriter, r *http.Request)
 	LogoutHandler(w http.ResponseWriter, r *http.Request)
+	//SignUpHandler(w http.ResponseWriter, r *http.Request)
+	//SignInHandler(w http.ResponseWriter, r *http.Request)
+	//RedirectHandler(w http.ResponseWriter, r *http.Request)
+	//CallbackHandler(w http.ResponseWriter, r *http.Request)
 }
 type UserHandler interface {
 	GetUserProfile(w http.ResponseWriter, r *http.Request)
 	UpdateUserProfile(w http.ResponseWriter, r *http.Request)
-	DeleteUserAccount(w http.ResponseWriter, r *http.Request)
-	BackupUserData(w http.ResponseWriter, r *http.Request)
-	RestoreUserData(w http.ResponseWriter, r *http.Request)
 }
 
 type Handler interface {

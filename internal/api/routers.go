@@ -9,7 +9,11 @@ import (
 
 func RegisterRoutes(router *mux.Router, handler dependency.Handler) { //repo dependency.Repository, cfg *config.Config
 	// OAuth2 маршруты
-	router.HandleFunc("/auth/signup", func(w http.ResponseWriter, r *http.Request) {
+	router.HandleFunc("/auth/auths", func(w http.ResponseWriter, r *http.Request) {
+		handler.AuthHandler().AuthsHandler(w, r)
+	}).Methods("POST")
+
+	/*router.HandleFunc("/auth/signup", func(w http.ResponseWriter, r *http.Request) {
 		handler.AuthHandler().SignUpHandler(w, r)
 	}).Methods("POST")
 
@@ -23,7 +27,7 @@ func RegisterRoutes(router *mux.Router, handler dependency.Handler) { //repo dep
 
 	router.HandleFunc("/auth/callback", func(w http.ResponseWriter, r *http.Request) {
 		handler.AuthHandler().CallbackHandler(w, r)
-	}).Methods("POST")
+	}).Methods("POST")*/
 
 	router.HandleFunc("/auth/token/refresh", func(w http.ResponseWriter, r *http.Request) {
 		handler.AuthHandler().RefreshTokenHandler(w, r) //
@@ -41,16 +45,4 @@ func RegisterRoutes(router *mux.Router, handler dependency.Handler) { //repo dep
 	router.HandleFunc("/user/profile", middleware.AuthMiddleware(func(w http.ResponseWriter, r *http.Request) {
 		handler.UserHandler().UpdateUserProfile(w, r)
 	})).Methods("PATCH") //?
-
-	router.HandleFunc("/user/account", middleware.AuthMiddleware(func(w http.ResponseWriter, r *http.Request) {
-		handler.UserHandler().DeleteUserAccount(w, r)
-	})).Methods("DELETE") //?
-
-	router.HandleFunc("/user/backup", middleware.AuthMiddleware(func(w http.ResponseWriter, r *http.Request) {
-		handler.UserHandler().BackupUserData(w, r)
-	})).Methods("GET")
-
-	router.HandleFunc("/user/restore", middleware.AuthMiddleware(func(w http.ResponseWriter, r *http.Request) {
-		handler.UserHandler().RestoreUserData(w, r)
-	})).Methods("POST")
 }
