@@ -52,14 +52,14 @@ type UserHandler interface {
 	UpdateUserProfile(w http.ResponseWriter, r *http.Request)
 }
 
-type Handler interface {
-	AuthHandler() AuthHandler
-	UserHandler() UserHandler
-	RingHandler() RingHandler
-}
-
 type RingHandler interface {
 	CreateRingHandler(w http.ResponseWriter, r *http.Request)
 	AttachRingHandler(w http.ResponseWriter, r *http.Request)
 	DetachRingHandler(w http.ResponseWriter, r *http.Request)
+}
+
+type Handler interface {
+	AuthHandler() AuthHandler
+	UserHandler() UserHandler
+	RingHandler() RingHandler
 }

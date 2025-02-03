@@ -32,11 +32,12 @@ func RegisterRoutes(router *mux.Router, handler dependency.Handler) {
 
 	//User device
 	router.HandleFunc("/user/device", func(w http.ResponseWriter, r *http.Request) {
-		handler.RingHandler().CreateRingHandler(w, r)
-	}).Methods("POST") //
+		handler.UserHandler().GetUserProfile(w, r)
+	}).Methods("GET") //
 
+	//Save User Ring
 	/*router.HandleFunc("/user/device", middleware.AuthMiddleware(func(w http.ResponseWriter, r *http.Request) {
-		handler.RingHandler().CreateRingHandler(w, r)
+		handler.RingHandler().AttachRingHandler(w, r)
 	})).Methods("POST") //*/
 
 	router.HandleFunc("/user/device", middleware.AuthMiddleware(func(w http.ResponseWriter, r *http.Request) {

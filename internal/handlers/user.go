@@ -22,7 +22,7 @@ func (h *Handler) UserHandler() dependency.UserHandler {
 func (h *Handler) GetUserProfile(w http.ResponseWriter, r *http.Request) {
 	authHeader := r.Header.Get("Authorization")
 	if !strings.HasPrefix(authHeader, "Bearer ") {
-		http.Error(w, `{"error": "Unauthorized:11 Invalid token format"}`, http.StatusUnauthorized)
+		http.Error(w, `{"error": "Unauthorized: Invalid token format"}`, http.StatusUnauthorized)
 		return
 	}
 
