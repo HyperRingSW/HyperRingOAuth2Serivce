@@ -42,13 +42,6 @@ paths:
       summary: Token Refresh
       description: Refresh access token using refresh token
       operationId: RefreshTokenHandler
-      requestBody:
-        description: Token refresh data
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/RefreshTokenRequest'
       responses:
         '200':
           description: Token refreshed
@@ -79,13 +72,6 @@ paths:
       summary: User Logout
       description: Logout user by invalidating access token
       operationId: LogoutHandler
-      requestBody:
-        description: Logout data
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/LogoutRequest'
       responses:
         '200':
           description: Successful logout
@@ -187,26 +173,6 @@ components:
           type: string
           description: Refresh token (only Google)
           example: "1//0gF..."
-    RefreshTokenRequest:
-      type: object
-      properties:
-        refresh_token:
-          type: string
-          example: "refresh_token_123"
-        provider:
-          type: string
-          example: "google"
-      required:
-        - refresh_token
-        - provider
-    LogoutRequest:
-      type: object
-      properties:
-        access_token:
-          type: string
-          example: "access_token_123"
-      required:
-        - access_token
     LogoutSuccess:
       type: object
       properties:
@@ -223,28 +189,6 @@ components:
           type: integer
           format: int64
           example: 1700000000
-    TokenServiceResponse:
-      type: object
-      properties:
-        user_id:
-          type: integer
-          example: 1
-        access_token:
-          type: string
-          example: "new_access_token_123"
-        refresh_token:
-          type: string
-          example: "new_refresh_token_123"
-        expiration_in:
-          type: integer
-          example: 3600
-        expires_at:
-          type: integer
-          format: int64
-          example: 1700000000
-        data:
-          type: string
-          example: "additional data"
     UserProfile:
       type: object
       properties:
