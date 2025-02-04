@@ -10,7 +10,6 @@ import (
 	"io"
 	"math/big"
 	"net/http"
-	"net/url"
 	"oauth2-server/internal/models"
 	"time"
 )
@@ -23,51 +22,18 @@ type TokenResponse struct {
 	TokenType    string `json:"token_type"`
 }
 
-// ExchangeCodeForToken retrieve token
-func ExchangeCodeForToken(code, redirectURI string, config ProviderConfig, codeVerifier string) (*TokenResponse, error) {
-	data := url.Values{}
-	data.Set("code", code)
-	data.Set("client_id", config.ClientID)
-	data.Set("client_secret", config.ClientSecret)
-	data.Set("redirect_uri", redirectURI)
-	data.Set("grant_type", "authorization_code")
-
-	if codeVerifier != "" {
-		data.Set("code_verifier", codeVerifier)
-	}
-
-	resp, err := http.PostForm(config.TokenURL, data)
-	if err != nil {
-		return nil, fmt.Errorf("failed to exchange code for token: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("token exchange failed: %s, response: %s", resp.Status, string(body))
-	}
-
-	var tokenResponse TokenResponse
-	if err = json.NewDecoder(resp.Body).Decode(&tokenResponse); err != nil {
-		return nil, fmt.Errorf("failed to decode token response: %w", err)
-	}
-
-	return &tokenResponse, nil
-}
-
-// GetUserInfo
-func GetUserInfo(token *TokenResponse, userInfoURL string, provider string) (map[string]interface{}, error) {
+func GetUserInfo(accessToken string, userInfoURL string, provider string) (map[string]interface{}, error) {
 	var req *http.Request
 	var err error
 
 	switch provider {
 	case models.PROVIDER_FB:
-		fullURL := fmt.Sprintf("%s?fields=id,name,email&access_token=%s", userInfoURL, token.AccessToken)
+		fullURL := fmt.Sprintf("%s?fields=id,name,email&access_token=%s", userInfoURL, accessToken)
 		req, err = http.NewRequest("GET", fullURL, nil)
 	case models.PROVIDER_GOOGLE, models.PROVIDER_APPLE:
 		req, err = http.NewRequest("GET", userInfoURL, nil)
 		if err == nil {
-			req.Header.Set("Authorization", "Bearer "+token.AccessToken)
+			req.Header.Set("Authorization", "Bearer "+accessToken)
 		}
 	default:
 		return nil, fmt.Errorf("unsupported provider: %s", provider)
@@ -151,29 +117,26 @@ func fetchCerts(url string) ([]map[string]interface{}, error) {
 	return data.Keys, nil
 }
 
-// VerifyGoogleIDToken проверяет Google id_token, используя публичные ключи Google, и возвращает claims.
+// VerifyGoogleIDToken checking Google id_token, using public keys Google, and retrieve claims.
 func VerifyGoogleIDToken(idToken string, providerConfig ProviderConfig) (map[string]interface{}, error) {
 	certs, err := fetchCerts("https://www.googleapis.com/oauth2/v3/certs")
 	if err != nil {
 		return nil, err
 	}
 
-	// Разбираем заголовок токена для получения параметра kid.
+	// Parsing token for getting kid.
 	parser := new(jwt.Parser)
 	token, _, err := parser.ParseUnverified(idToken, jwt.MapClaims{})
 	if err != nil {
-		return nil, fmt.Errorf("ошибка разбора token: %v", err)
-	}
-	/*token, err := jwt.Parse(idToken, nil)
-	if err != nil {
-		return nil, fmt.Errorf("ошибка разбора token: %v", err)
-	}*/
-	kid, ok := token.Header["kid"].(string)
-	if !ok {
-		return nil, errors.New("kid отсутствует в заголовке token")
+		return nil, fmt.Errorf("failed parsing unverified token: %v", err)
 	}
 
-	// Находим соответствующий ключ по kid.
+	kid, ok := token.Header["kid"].(string)
+	if !ok {
+		return nil, errors.New("kid header not found")
+	}
+
+	// find kid
 	var jwk map[string]interface{}
 	for _, key := range certs {
 		if key["kid"] == kid {
@@ -182,39 +145,39 @@ func VerifyGoogleIDToken(idToken string, providerConfig ProviderConfig) (map[str
 		}
 	}
 	if jwk == nil {
-		return nil, errors.New("соответствующий ключ не найден")
+		return nil, errors.New("error fetching jwk")
 	}
 
 	pubKey, err := ParseRSAPublicKeyFromJWK(jwk)
 	if err != nil {
-		return nil, fmt.Errorf("ошибка получения публичного ключа: %v", err)
+		return nil, fmt.Errorf("failed getting public key: %v", err)
 	}
 
-	// Разбираем и проверяем токен, используя найденный публичный ключ.
+	// Get and check token, using public key.
 	parsedToken, err := jwt.Parse(idToken, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodRSA); !ok {
-			return nil, fmt.Errorf("неожиданный метод подписи: %v", token.Header["alg"])
+			return nil, fmt.Errorf("incorrect sign method: %v", token.Header["alg"])
 		}
 		return pubKey, nil
 	})
 	if err != nil {
-		return nil, fmt.Errorf("ошибка валидации token: %v", err)
+		return nil, fmt.Errorf("failed token validation: %v", err)
 	}
 	if !parsedToken.Valid {
-		return nil, errors.New("невалидный token")
+		return nil, errors.New("invalid token")
 	}
 
 	claims, ok := parsedToken.Claims.(jwt.MapClaims)
 	if !ok {
-		return nil, errors.New("не удалось извлечь claims")
+		return nil, errors.New("cannot parse claims")
 	}
 
-	// Дополнительные проверки: audience и expiration.
+	// Others checking: audience и expiration.
 	if aud, ok := claims["aud"].(string); !ok || aud != providerConfig.ClientID {
-		return nil, errors.New("некорректный audience")
+		return nil, errors.New("invalid audience")
 	}
 	if exp, ok := claims["exp"].(float64); ok && int64(exp) < time.Now().Unix() {
-		return nil, errors.New("token истёк")
+		return nil, errors.New("token expired")
 	}
 
 	return claims, nil

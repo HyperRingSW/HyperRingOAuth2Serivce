@@ -57,6 +57,14 @@ func (h *Handler) AuthUserHandler(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, `{"error": "invalid google idToken"}`, http.StatusUnauthorized)
 			return
 		}
+
+		//Checking info on provider
+		_, err := providers.GetUserInfo(body.AccessToken, providerConfig.UserInfoURL, body.Provider)
+		if err != nil {
+			http.Error(w, `{"error": "failed get user info"}`, http.StatusUnauthorized)
+			return
+		}
+
 	case models.PROVIDER_FB:
 		if body.AccessToken == "" {
 			http.Error(w, `{"error": "accessToken required for facebook"}`, http.StatusBadRequest)
