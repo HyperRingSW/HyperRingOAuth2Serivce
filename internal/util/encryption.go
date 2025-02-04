@@ -6,11 +6,11 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"errors"
-	"io"
+	"os"
 )
 
 func getSecretKey() ([]byte, error) {
-	key := "12345678901234567890123456789012" // TODO .env os.Getenv("SECRET_KEY") 32 байта для AES-256
+	key := os.Getenv("SECRET_KEY")
 	if len(key) != 32 {
 		return nil, errors.New("invalid secret key length: must be 32 bytes")
 	}
@@ -77,68 +77,4 @@ func Decrypt(encryptedText string) (string, error) {
 	}
 
 	return string(plainText), nil
-}
-
-func EncryptCFB(plainText string) (string, error) {
-	secretKey, err := getSecretKey()
-	if err != nil {
-		return "", err
-	}
-	//create AES block
-	block, err := aes.NewCipher(secretKey)
-	if err != nil {
-		return "", err
-	}
-
-	//init cipher text
-	//use 32 byte
-	cipherText := make([]byte, aes.BlockSize+len(plainText))
-
-	//generate IV with rand.Reader
-	//first 16 byte needed for IV genera
-	iv := cipherText[:aes.BlockSize]
-	if _, err := io.ReadFull(rand.Reader, iv); err != nil {
-		return "", err
-	}
-
-	//creating cipher stream
-	stream := cipher.NewCFBEncrypter(block, iv)
-	//crypt by XORKeyStream
-	stream.XORKeyStream(cipherText[aes.BlockSize:], []byte(plainText))
-
-	//return base64 string
-	return base64.StdEncoding.EncodeToString(cipherText), nil
-}
-
-// Decrypt
-func DecryptCFB(encryptedText string) (string, error) {
-	secretKey, err := getSecretKey()
-	if err != nil {
-		return "", err
-	}
-
-	//base64 decode
-	cipherText, err := base64.StdEncoding.DecodeString(encryptedText)
-	if err != nil {
-		return "", err
-	}
-
-	//init AES bock
-	block, err := aes.NewCipher(secretKey)
-	if err != nil {
-		return "", err
-	}
-
-	if len(cipherText) < aes.BlockSize {
-		return "", errors.New("ciphertext too short")
-	}
-
-	iv := cipherText[:aes.BlockSize]
-	cipherText = cipherText[aes.BlockSize:]
-
-	//decrypting
-	stream := cipher.NewCFBDecrypter(block, iv)
-	stream.XORKeyStream(cipherText, cipherText)
-
-	return string(cipherText), nil
 }

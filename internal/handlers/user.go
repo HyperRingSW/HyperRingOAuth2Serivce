@@ -30,7 +30,6 @@ func (h *Handler) GetUserProfile(w http.ResponseWriter, r *http.Request) {
 	if user == nil {
 		util.LogError(errors.New("user not found"))
 		w.WriteHeader(http.StatusNotFound)
-		//http.Error(w, `{"error": "User not found"}`, http.StatusNotFound)
 		return
 	}
 
@@ -38,7 +37,6 @@ func (h *Handler) GetUserProfile(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		util.LogError(err)
 		w.WriteHeader(http.StatusInternalServerError)
-		//http.Error(w, `{"error": "User ring repository error"}`, http.StatusInternalServerError)
 		return
 	}
 
@@ -49,7 +47,6 @@ func (h *Handler) GetUserProfile(w http.ResponseWriter, r *http.Request) {
 			util.LogError(err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
-			//http.Error(w, `{"error": "Ring repository error"}`, http.StatusInternalServerError)
 		}
 		rings = append(rings, *ring)
 	}

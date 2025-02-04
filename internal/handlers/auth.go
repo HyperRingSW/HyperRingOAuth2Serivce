@@ -35,7 +35,6 @@ func (h *Handler) AuthUserHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		util.LogError(err)
-		//http.Error(w, `{"error": "Invalid request body"}`, http.StatusBadRequest)
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
@@ -45,7 +44,6 @@ func (h *Handler) AuthUserHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		util.LogError(err)
 		w.WriteHeader(http.StatusBadRequest)
-		//http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -55,7 +53,6 @@ func (h *Handler) AuthUserHandler(w http.ResponseWriter, r *http.Request) {
 	case models.PROVIDER_GOOGLE:
 		if body.IdToken == "" {
 			util.LogError(errors.New("idToken is required"))
-			//http.Error(w, `{"error": "idToken is required"}`, http.StatusBadRequest)
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
@@ -63,7 +60,6 @@ func (h *Handler) AuthUserHandler(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			util.LogError(err)
 			w.WriteHeader(http.StatusBadRequest)
-			//http.Error(w, `{"error": "invalid google idToken"}`, http.StatusUnauthorized)
 			return
 		}
 
@@ -72,7 +68,6 @@ func (h *Handler) AuthUserHandler(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			util.LogError(err)
 			w.WriteHeader(http.StatusBadRequest)
-			//http.Error(w, `{"error": "failed get user info"}`, http.StatusUnauthorized)
 			return
 		}
 
@@ -80,34 +75,29 @@ func (h *Handler) AuthUserHandler(w http.ResponseWriter, r *http.Request) {
 		if body.AccessToken == "" {
 			util.LogError(errors.New("accessToken is required"))
 			w.WriteHeader(http.StatusBadRequest)
-			//http.Error(w, `{"error": "accessToken required for facebook"}`, http.StatusBadRequest)
 			return
 		}
 		claims, err = providers.GetFacebookUserInfo(body.AccessToken, providerConfig.UserInfoURL)
 		if err != nil {
 			util.LogError(err)
 			w.WriteHeader(http.StatusBadRequest)
-			//http.Error(w, `{"error": "invalid facebook accessToken"}`, http.StatusUnauthorized)
 			return
 		}
 	case models.PROVIDER_APPLE:
 		if body.IdToken == "" {
 			util.LogError(errors.New("idToken is required"))
 			w.WriteHeader(http.StatusBadRequest)
-			//http.Error(w, `{"error": "idToken is required"}`, http.StatusBadRequest)
 			return
 		}
 		claims, err = providers.VerifyAppleIdentityToken(body.IdToken, providerConfig)
 		if err != nil {
 			util.LogError(err)
 			w.WriteHeader(http.StatusBadRequest)
-			//http.Error(w, `{"error": "invalid Apple idToken"}`, http.StatusUnauthorized)
 			return
 		}
 	default:
 		util.LogError(errors.New("provider not supported"))
 		w.WriteHeader(http.StatusBadRequest)
-		//http.Error(w, `{"error": "unknown provider"}`, http.StatusBadRequest)
 		return
 	}
 
@@ -116,7 +106,6 @@ func (h *Handler) AuthUserHandler(w http.ResponseWriter, r *http.Request) {
 	if !ok || email == "" {
 		util.LogError(errors.New("email is required"))
 		w.WriteHeader(http.StatusBadRequest)
-		//http.Error(w, `{"error": "email not found in token data"}`, http.StatusUnauthorized)
 		return
 	}
 	// get user name
@@ -127,7 +116,6 @@ func (h *Handler) AuthUserHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		util.LogError(err)
 		w.WriteHeader(http.StatusBadRequest)
-		//http.Error(w, `{"error": "failed serialization token data"}`, http.StatusInternalServerError)
 		return
 	}
 
@@ -142,7 +130,6 @@ func (h *Handler) AuthUserHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		util.LogError(err)
 		w.WriteHeader(http.StatusBadRequest)
-		//http.Error(w, `{"error": "failed create or update user"}`, http.StatusInternalServerError)
 		return
 	}
 
@@ -169,7 +156,6 @@ func (h *Handler) AuthUserHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		util.LogError(err)
 		w.WriteHeader(http.StatusInternalServerError)
-		//http.Error(w, fmt.Sprintf(`{"error": "failed save or update token", "error_msg": "%s"}`, err.Error()), http.StatusInternalServerError)
 		return
 	}
 
@@ -178,7 +164,6 @@ func (h *Handler) AuthUserHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		util.LogError(err)
 		w.WriteHeader(http.StatusInternalServerError)
-		//http.Error(w, `{"error": "failed generate JWT"}`, http.StatusInternalServerError)
 		return
 	}
 
@@ -195,7 +180,6 @@ func (h *Handler) RefreshTokenHandler(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		util.LogError(errors.New("invalid user ID in context"))
 		w.WriteHeader(http.StatusInternalServerError)
-		//http.Error(w, `{"error": "Invalid user ID in context"}`, http.StatusUnauthorized)
 		return
 	}
 
@@ -203,7 +187,6 @@ func (h *Handler) RefreshTokenHandler(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		util.LogError(errors.New("invalid provider in context"))
 		w.WriteHeader(http.StatusInternalServerError)
-		//http.Error(w, `{"error": "invalid provider in context"}`, http.StatusUnauthorized)
 		return
 	}
 
@@ -211,7 +194,6 @@ func (h *Handler) RefreshTokenHandler(w http.ResponseWriter, r *http.Request) {
 	if token == nil {
 		util.LogError(errors.New("token is not found"))
 		w.WriteHeader(http.StatusInternalServerError)
-		//http.Error(w, `{"error": "Token record not found"}`, http.StatusUnauthorized)
 		return
 	}
 
@@ -219,7 +201,6 @@ func (h *Handler) RefreshTokenHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		util.LogError(err)
 		w.WriteHeader(http.StatusInternalServerError)
-		//http.Error(w, `{"error": "Invalid or expired access token"}`, http.StatusUnauthorized)
 		return
 	}
 	token.AccessToken = decryptAccess
@@ -229,7 +210,6 @@ func (h *Handler) RefreshTokenHandler(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			util.LogError(err)
 			w.WriteHeader(http.StatusInternalServerError)
-			//http.Error(w, `{"error": "Invalid or expired refresh token"}`, http.StatusUnauthorized)
 			return
 		}
 		token.RefreshToken = decryptRefresh
@@ -257,7 +237,6 @@ func (h *Handler) RefreshTokenHandler(w http.ResponseWriter, r *http.Request) {
 	default:
 		util.LogError(errors.New("invalid provider"))
 		w.WriteHeader(http.StatusBadRequest)
-		//http.Error(w, `{"error": "Unsupported provider"}`, http.StatusBadRequest)
 		return
 	}
 
@@ -266,7 +245,6 @@ func (h *Handler) RefreshTokenHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		util.LogError(err)
 		w.WriteHeader(http.StatusInternalServerError)
-		//http.Error(w, fmt.Sprintf(`{"error": "Failed to exchange token: %v"}`, err), http.StatusBadRequest)
 		return
 	}
 	defer resp.Body.Close()
@@ -274,8 +252,6 @@ func (h *Handler) RefreshTokenHandler(w http.ResponseWriter, r *http.Request) {
 	if resp.StatusCode != http.StatusOK {
 		util.LogError(errors.New("Token exchange failed"))
 		w.WriteHeader(http.StatusBadRequest)
-		//bodyBytes, _ := io.ReadAll(resp.Body)
-		//http.Error(w, fmt.Sprintf(`{"error": "Token exchange failed: %s, response: %s"}`, resp.Status, string(bodyBytes)), http.StatusBadRequest)
 		return
 	}
 
@@ -283,7 +259,6 @@ func (h *Handler) RefreshTokenHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		util.LogError(err)
 		w.WriteHeader(http.StatusInternalServerError)
-		//http.Error(w, `{"error": "Failed to read response body"}`, http.StatusBadRequest)
 		return
 	}
 
@@ -291,7 +266,6 @@ func (h *Handler) RefreshTokenHandler(w http.ResponseWriter, r *http.Request) {
 	if err = json.Unmarshal(bodyBytes, &bodyResponse); err != nil {
 		util.LogError(err)
 		w.WriteHeader(http.StatusInternalServerError)
-		//http.Error(w, fmt.Sprintf("failed to decode token response: %w", err.Error()), http.StatusBadRequest)
 		return
 	}
 
@@ -299,7 +273,6 @@ func (h *Handler) RefreshTokenHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		util.LogError(err)
 		w.WriteHeader(http.StatusInternalServerError)
-		//http.Error(w, `{"error": "Unable to marshal user info"}`, http.StatusInternalServerError)
 		return
 	}
 
@@ -308,7 +281,6 @@ func (h *Handler) RefreshTokenHandler(w http.ResponseWriter, r *http.Request) {
 	if err = json.Unmarshal(bodyBytes, &tokenResponse); err != nil {
 		util.LogError(err)
 		w.WriteHeader(http.StatusInternalServerError)
-		//http.Error(w, fmt.Sprintf(`{"error": "Failed to decode token response: %v"}`, err), http.StatusBadRequest)
 		return
 	}
 
@@ -332,7 +304,6 @@ func (h *Handler) RefreshTokenHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		util.LogError(err)
 		w.WriteHeader(http.StatusInternalServerError)
-		//http.Error(w, `{"error": "Failed to update token"}`, http.StatusInternalServerError)
 		return
 	}
 
@@ -340,7 +311,6 @@ func (h *Handler) RefreshTokenHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		util.LogError(err)
 		w.WriteHeader(http.StatusInternalServerError)
-		//http.Error(w, `{"error": "Failed to generate JWT token"}`, http.StatusInternalServerError)
 		return
 	}
 
@@ -360,7 +330,6 @@ func (h *Handler) LogoutHandler(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		util.LogError(errors.New("Invalid user ID in context"))
 		w.WriteHeader(http.StatusUnauthorized)
-		//http.Error(w, `{"error": "Invalid user ID in context"}`, http.StatusUnauthorized)
 		return
 	}
 
@@ -368,7 +337,6 @@ func (h *Handler) LogoutHandler(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		util.LogError(errors.New("Invalid provider in context"))
 		w.WriteHeader(http.StatusUnauthorized)
-		//http.Error(w, `{"error": "Invalid provider in context"}`, http.StatusUnauthorized)
 		return
 	}
 
@@ -376,7 +344,6 @@ func (h *Handler) LogoutHandler(w http.ResponseWriter, r *http.Request) {
 	if token == nil {
 		util.LogError(errors.New("Token not found"))
 		w.WriteHeader(http.StatusBadRequest)
-		//http.Error(w, `{"error": "Token not found"}`, http.StatusBadRequest)
 		return
 	}
 
@@ -384,7 +351,6 @@ func (h *Handler) LogoutHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		util.LogError(err)
 		w.WriteHeader(http.StatusBadRequest)
-		//http.Error(w, `{"error": "Invalid provider"}`, http.StatusBadRequest)
 		return
 	}
 
@@ -392,7 +358,6 @@ func (h *Handler) LogoutHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		util.LogError(err)
 		w.WriteHeader(http.StatusUnauthorized)
-		//http.Error(w, `{"error": "Invalid or expired access token"}`, http.StatusUnauthorized)
 		return
 	}
 
@@ -408,7 +373,6 @@ func (h *Handler) LogoutHandler(w http.ResponseWriter, r *http.Request) {
 	default:
 		util.LogError(errors.New("Unsupported provider"))
 		w.WriteHeader(http.StatusBadRequest)
-		//http.Error(w, `{"error": "Unsupported provider"}`, http.StatusBadRequest)
 		return
 	}
 
@@ -416,7 +380,6 @@ func (h *Handler) LogoutHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		util.LogError(err)
 		w.WriteHeader(http.StatusBadRequest)
-		//http.Error(w, `{"error": "Failed to revoke token"}`, http.StatusInternalServerError)
 		return
 	}
 	defer resp.Body.Close()
@@ -424,14 +387,12 @@ func (h *Handler) LogoutHandler(w http.ResponseWriter, r *http.Request) {
 	if resp.StatusCode != http.StatusOK {
 		util.LogError(errors.New("Token revocation failed"))
 		w.WriteHeader(http.StatusBadRequest)
-		//http.Error(w, `{"error": "Token revocation failed"}`, http.StatusBadRequest)
 		return
 	}
 
 	if err := h.repo.TokenRepository().InvalidateToken(token.AccessToken); err != nil {
 		util.LogError(err)
 		w.WriteHeader(http.StatusBadRequest)
-		//http.Error(w, `{"error": "Failed to logout"}`, http.StatusInternalServerError)
 		return
 	}
 

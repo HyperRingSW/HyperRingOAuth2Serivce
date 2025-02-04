@@ -24,7 +24,6 @@ func (h *Handler) AttachRingHandler(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		util.LogError(errors.New("invalid user ID in context"))
 		w.WriteHeader(http.StatusInternalServerError)
-		//http.Error(w, `{"error": "Invalid user ID in context"}`, http.StatusUnauthorized)
 		return
 	}
 
@@ -33,7 +32,6 @@ func (h *Handler) AttachRingHandler(w http.ResponseWriter, r *http.Request) {
 	if err := json.NewDecoder(r.Body).Decode(&ring); err != nil {
 		util.LogError(err)
 		w.WriteHeader(http.StatusInternalServerError)
-		//http.Error(w, fmt.Sprintf("Error decode JSON: %v", err), http.StatusBadRequest)
 		return
 	}
 
@@ -41,7 +39,6 @@ func (h *Handler) AttachRingHandler(w http.ResponseWriter, r *http.Request) {
 	if ring.Id == "" {
 		util.LogError(errors.New("missing ring id"))
 		w.WriteHeader(http.StatusBadRequest)
-		//http.Error(w, "", http.StatusBadRequest)
 		return
 	}
 
@@ -52,7 +49,6 @@ func (h *Handler) AttachRingHandler(w http.ResponseWriter, r *http.Request) {
 		util.LogError(err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
-		//http.Error(w, "", http.StatusBadRequest)
 	}
 
 	//Attach ring to user
@@ -65,7 +61,6 @@ func (h *Handler) AttachRingHandler(w http.ResponseWriter, r *http.Request) {
 		util.LogError(err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
-		//http.Error(w, "", http.StatusBadRequest)
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -75,39 +70,3 @@ func (h *Handler) AttachRingHandler(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) UnlinkRingHandler(w http.ResponseWriter, r *http.Request) {
 
 }
-
-/*func (h *Handler) CreateRingHandler(w http.ResponseWriter, r *http.Request) {
-	var ring models.Ring
-
-	// Decode JSON to Ring model
-	if err := json.NewDecoder(r.Body).Decode(&ring); err != nil {
-		util.LogError(err)
-		w.WriteHeader(http.StatusBadRequest)
-		//http.Error(w, fmt.Sprintf("Error decode JSON: %v", err), http.StatusBadRequest)
-		return
-	}
-
-	// Easy validations
-	if ring.Id == "" {
-		util.LogError(errors.New("missing ring id"))
-		w.WriteHeader(http.StatusBadRequest)
-		//http.Error(w, "", http.StatusBadRequest) //TODO: add error text
-		return
-	}
-
-	ring.DeviceDescription.RingID = ring.Id
-
-	_, err := h.repo.RingRepository().SaveRing(&ring)
-	if err != nil {
-		util.LogError(err)
-		w.WriteHeader(http.StatusBadRequest)
-		return
-		//http.Error(w, "", http.StatusBadRequest) //TODO: add error text
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	if err := json.NewEncoder(w).Encode(ring.Id); err != nil { //TODO: add response
-		fmt.Printf("failed JSON decoding: %v", err)
-	}
-}*/

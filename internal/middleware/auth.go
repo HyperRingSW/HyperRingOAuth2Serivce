@@ -14,7 +14,6 @@ func AuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
 		if !strings.HasPrefix(authHeader, "Bearer ") {
 			util.LogError(errors.New("Authorization header format is incorrect"))
 			w.WriteHeader(http.StatusUnauthorized)
-			//http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			return
 		}
 
@@ -24,7 +23,6 @@ func AuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
 		if err != nil {
 			util.LogError(err)
 			w.WriteHeader(http.StatusUnauthorized)
-			//http.Error(w, "Invalid token", http.StatusUnauthorized)
 			return
 		}
 
@@ -33,7 +31,6 @@ func AuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
 		if !ok {
 			util.LogError(err)
 			w.WriteHeader(http.StatusUnauthorized)
-			//http.Error(w, "Invalid user_id in token", http.StatusUnauthorized)
 			return
 		}
 		userID := uint(idFloat)
