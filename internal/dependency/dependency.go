@@ -18,7 +18,7 @@ type TokenRepository interface {
 	UpdateToken(token models.Token, provider string) (*models.Token, error)
 	CreateToken(token *models.Token) error
 	InvalidateToken(accessToken string) error
-	UserToken(userId int) *models.Token
+	UserToken(userId uint) *models.Token
 	RefreshAccessToken(refreshToken string, needEncrypt bool) (*models.Token, error)
 }
 
@@ -43,10 +43,6 @@ type AuthHandler interface {
 	AuthUserHandler(w http.ResponseWriter, r *http.Request)
 	RefreshTokenHandler(w http.ResponseWriter, r *http.Request)
 	LogoutHandler(w http.ResponseWriter, r *http.Request)
-	//SignUpHandler(w http.ResponseWriter, r *http.Request)
-	//SignInHandler(w http.ResponseWriter, r *http.Request)
-	//RedirectHandler(w http.ResponseWriter, r *http.Request)
-	//CallbackHandler(w http.ResponseWriter, r *http.Request)
 }
 type UserHandler interface {
 	GetUserProfile(w http.ResponseWriter, r *http.Request)

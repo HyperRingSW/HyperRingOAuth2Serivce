@@ -2,6 +2,7 @@ package repository
 
 import (
 	"fmt"
+	"gorm.io/gorm/logger"
 	"log"
 
 	"gorm.io/driver/postgres"
@@ -20,30 +21,32 @@ func New(cfg config.DatabaseConfig, autoMigrate bool) (*PostgresDB, error) {
 		cfg.Host, cfg.Port, cfg.User, cfg.Password, cfg.Name, cfg.SSLMode,
 	)
 
-	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
+		Logger: logger.Default.LogMode(logger.Silent),
+	})
 	if err != nil {
-		return nil, fmt.Errorf("не удалось подключиться к базе данных: %w", err)
+		return nil, fmt.Errorf("failed db connect: %w", err)
 	}
 
 	sqlDB, err := db.DB()
 	if err != nil {
-		return nil, fmt.Errorf("не удалось получить информацию о подключении: %w", err)
+		return nil, fmt.Errorf("can`t db connection: %w", err)
 	}
 	if err := sqlDB.Ping(); err != nil {
-		return nil, fmt.Errorf("не удалось подключиться к базе данных: %w", err)
+		return nil, fmt.Errorf("failed db connect: %w", err)
 	}
 
-	log.Printf("Подключение к базе данных установлено: %s:%d/%s", cfg.Host, cfg.Port, cfg.Name)
+	log.Print("DB connected")
 
 	// Миграции
 	if autoMigrate {
-		log.Println("Выполняются миграции...")
+		log.Println("DB migrations...")
 		if err := RunMigrations(db); err != nil {
-			return nil, fmt.Errorf("ошибка миграции: %w", err)
+			return nil, fmt.Errorf("migration error: %w", err)
 		}
-		log.Println("Миграции успешно завершены.")
+		log.Println("Migrations done")
 	} else {
-		log.Println("Автоматическая миграция отключена.")
+		log.Println("AutoMigrate disabled")
 	}
 
 	return &PostgresDB{db: db}, nil

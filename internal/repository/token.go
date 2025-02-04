@@ -135,7 +135,7 @@ func (repo *PostgresDB) InvalidateToken(accessToken string) error {
 	return repo.db.Where("access_token = ?", accessToken).Delete(&models.Token{}).Error
 }
 
-func (repo *PostgresDB) UserToken(userId int) *models.Token {
+func (repo *PostgresDB) UserToken(userId uint) *models.Token {
 	token := &models.Token{}
 
 	result := repo.db.Where("user_id = ?", userId).First(&token)
