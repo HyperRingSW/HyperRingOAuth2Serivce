@@ -13,9 +13,9 @@ func RegisterRoutes(router *mux.Router, handler dependency.Handler) {
 		handler.AuthHandler().AuthUserHandler(w, r)
 	}).Methods("POST")
 
-	router.HandleFunc("/auth/token/refresh", func(w http.ResponseWriter, r *http.Request) {
+	router.HandleFunc("/auth/token/refresh", middleware.AuthMiddleware(func(w http.ResponseWriter, r *http.Request) {
 		handler.AuthHandler().RefreshTokenHandler(w, r)
-	}).Methods("POST")
+	})).Methods("POST")
 
 	router.HandleFunc("/auth/logout", func(w http.ResponseWriter, r *http.Request) {
 		handler.AuthHandler().LogoutHandler(w, r)
@@ -31,18 +31,19 @@ func RegisterRoutes(router *mux.Router, handler dependency.Handler) {
 	})).Methods("PATCH") //?
 
 	//User device
-	router.HandleFunc("/user/device", func(w http.ResponseWriter, r *http.Request) {
+	router.HandleFunc("/user/profile", func(w http.ResponseWriter, r *http.Request) {
 		handler.UserHandler().GetUserProfile(w, r)
 	}).Methods("GET") //
 
 	//Save User Ring
-	/*router.HandleFunc("/user/device", middleware.AuthMiddleware(func(w http.ResponseWriter, r *http.Request) {
-		handler.RingHandler().AttachRingHandler(w, r)
-	})).Methods("POST") //*/
-
 	router.HandleFunc("/user/device", middleware.AuthMiddleware(func(w http.ResponseWriter, r *http.Request) {
 		handler.RingHandler().AttachRingHandler(w, r)
-	})).Methods("PATCH") //?
+	})).Methods("PATCH") //
+
+	//Unlink ring
+	router.HandleFunc("/user/device", middleware.AuthMiddleware(func(w http.ResponseWriter, r *http.Request) {
+		handler.RingHandler().UnlinkRingHandler(w, r)
+	})).Methods("DELETE") //?
 
 	/*router.HandleFunc("/auth/signup", func(w http.ResponseWriter, r *http.Request) {
 		handler.AuthHandler().SignUpHandler(w, r)

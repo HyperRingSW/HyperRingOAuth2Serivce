@@ -5,8 +5,6 @@ import (
 	"net/http"
 	"oauth2-server/internal/dependency"
 	"oauth2-server/internal/models"
-	"oauth2-server/internal/util"
-	"strings"
 )
 
 type userHandler struct {
@@ -20,32 +18,20 @@ func (h *Handler) UserHandler() dependency.UserHandler {
 }
 
 func (h *Handler) GetUserProfile(w http.ResponseWriter, r *http.Request) {
-	authHeader := r.Header.Get("Authorization")
-	if !strings.HasPrefix(authHeader, "Bearer ") {
-		http.Error(w, `{"error": "Unauthorized: Invalid token format"}`, http.StatusUnauthorized)
-		return
-	}
-
-	tokenString := strings.TrimPrefix(authHeader, "Bearer ")
-
-	claims, err := util.ParseJWT(tokenString)
-	if err != nil {
-		http.Error(w, `{"error": "Invalid token4"}`, http.StatusUnauthorized)
-		return
-	}
-
-	userId, ok := claims["user_id"].(float64)
+	userID, ok := r.Context().Value("userID").(uint)
 	if !ok {
-		http.Error(w, `{"error": "Invalid token payload"}`, http.StatusUnauthorized)
+		http.Error(w, `{"error": "Invalid user ID in context"}`, http.StatusUnauthorized)
 		return
 	}
 
 	// Получаем пользователя из базы данных
-	user := h.repo.UserRepository().GetUserByID(uint(userId))
+	user := h.repo.UserRepository().GetUserByID(userID)
 	if user == nil {
 		http.Error(w, `{"error": "User not found"}`, http.StatusNotFound)
 		return
 	}
+
+	//rings, err := h.repo.RingRepository().SaveRing()
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
@@ -53,10 +39,11 @@ func (h *Handler) GetUserProfile(w http.ResponseWriter, r *http.Request) {
 		UserId: user.ID,
 		Name:   user.Email,
 		Email:  user.Name,
+		Rings:  make([]models.Ring, 0),
 	})
 }
 
-// UpdateUserProfile
+// UpdateUserProfile UNUSED
 func (h *Handler) UpdateUserProfile(w http.ResponseWriter, r *http.Request) {
 	userID, ok := r.Context().Value("userID").(uint)
 	if !ok {

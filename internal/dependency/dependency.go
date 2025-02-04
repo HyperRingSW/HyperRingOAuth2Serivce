@@ -29,6 +29,7 @@ type RingRepository interface {
 type UserRingRepository interface {
 	SaveUserRing(ur *models.UserRing) error
 	DeleteUserRing(ur *models.UserRing) error
+	GetUserRing(userID uint) ([]models.UserRing, error)
 }
 
 type Repository interface {
@@ -55,7 +56,7 @@ type UserHandler interface {
 type RingHandler interface {
 	CreateRingHandler(w http.ResponseWriter, r *http.Request)
 	AttachRingHandler(w http.ResponseWriter, r *http.Request)
-	DetachRingHandler(w http.ResponseWriter, r *http.Request)
+	UnlinkRingHandler(w http.ResponseWriter, r *http.Request)
 }
 
 type Handler interface {

@@ -32,3 +32,11 @@ func (repo *PostgresDB) DeleteUserRing(ur *models.UserRing) error {
 	}
 	return nil
 }
+
+func (repo *userRingRepository) GetUserRing(userID uint) ([]models.UserRing, error) {
+	rings := make([]models.UserRing, 0)
+	if err := repo.db.Where("user_id = ?", userID).Find(&rings).Error; err != nil {
+		return nil, err
+	}
+	return rings, nil
+}

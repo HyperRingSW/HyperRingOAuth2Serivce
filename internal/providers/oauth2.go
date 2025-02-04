@@ -159,10 +159,15 @@ func VerifyGoogleIDToken(idToken string, providerConfig ProviderConfig) (map[str
 	}
 
 	// Разбираем заголовок токена для получения параметра kid.
-	token, err := jwt.Parse(idToken, nil)
+	parser := new(jwt.Parser)
+	token, _, err := parser.ParseUnverified(idToken, jwt.MapClaims{})
 	if err != nil {
 		return nil, fmt.Errorf("ошибка разбора token: %v", err)
 	}
+	/*token, err := jwt.Parse(idToken, nil)
+	if err != nil {
+		return nil, fmt.Errorf("ошибка разбора token: %v", err)
+	}*/
 	kid, ok := token.Header["kid"].(string)
 	if !ok {
 		return nil, errors.New("kid отсутствует в заголовке token")
