@@ -31,7 +31,19 @@ func (h *Handler) GetUserProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	//rings, err := h.repo.RingRepository().SaveRing()
+	userRings, err := h.repo.UserRingRepository().GetUserRing(user.ID)
+	if err != nil {
+		http.Error(w, `{"error": "User ring repository error"}`, http.StatusInternalServerError)
+	}
+
+	rings := make([]models.Ring, 0)
+	for _, userRing := range userRings {
+		ring, err := h.repo.RingRepository().GetRing(userRing.RingID)
+		if err != nil {
+			http.Error(w, `{"error": "Ring repository error"}`, http.StatusInternalServerError)
+		}
+		rings = append(rings, *ring)
+	}
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
@@ -39,7 +51,7 @@ func (h *Handler) GetUserProfile(w http.ResponseWriter, r *http.Request) {
 		UserId: user.ID,
 		Name:   user.Email,
 		Email:  user.Name,
-		Rings:  make([]models.Ring, 0),
+		Rings:  rings,
 	})
 }
 

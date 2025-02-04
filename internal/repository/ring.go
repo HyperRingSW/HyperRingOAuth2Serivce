@@ -25,3 +25,14 @@ func (repo *PostgresDB) SaveRing(ring *models.Ring) (*models.Ring, error) {
 
 	return &savedRing, nil
 }
+
+func (repo *ringRepository) GetRing(id string) (*models.Ring, error) {
+	var ring models.Ring
+	if err := repo.db.
+		Preload("DeviceDescription").
+		Preload("DeviceDescription.Batch").
+		Where("id = ?", id).First(&ring).Error; err != nil {
+		return nil, errors.New("error get ring: " + err.Error())
+	}
+	return &ring, nil
+}

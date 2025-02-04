@@ -96,15 +96,13 @@ paths:
       summary: Get User Profile
       description: Get user profile information
       operationId: GetUserProfile
-      security:
-        - BearerAuth: [ ]
       responses:
         '200':
           description: Successful profile retrieval
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/UserProfile'
+                $ref: '#/components/schemas/GetUserProfileResponse'
         '401':
           description: Unauthorized
           content:
@@ -115,8 +113,6 @@ paths:
       summary: Update User Profile
       description: Update user profile information
       operationId: UpdateUserProfile
-      security:
-        - BearerAuth: [ ]
       requestBody:
         description: Profile update data
         required: true
@@ -130,7 +126,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/UserProfile'
+                $ref: '#/components/schemas/GetUserProfileResponse'
         '400':
           description: Invalid request data
           content:
@@ -149,6 +145,26 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPError'
+  /user/ring:
+    patch:
+      summary: Update User Profile
+      description: Update user profile information
+      operationId: UpdateUserProfile
+      requestBody:
+        description: Profile update data
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserDeviceRequest'
+      responses:
+        '200':
+          description: Successful profile update
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetUserProfileResponse'
+
 components:
   schemas:
     AuthsRequest:
@@ -189,22 +205,6 @@ components:
           type: integer
           format: int64
           example: 1700000000
-    UserProfile:
-      type: object
-      properties:
-        id:
-          type: integer
-          example: 1
-        email:
-          type: string
-          example: "user@example.com"
-        name:
-          type: string
-          example: "John Doe"
-      required:
-        - id
-        - email
-        - name
     UpdateUserProfileRequest:
       type: object
       properties:
@@ -217,6 +217,172 @@ components:
       required:
         - email
         - name
+    UserDeviceRequest:
+      type: object
+      required:
+        - id
+        - name
+        - services
+        - device_description
+      properties:
+        id:
+          type: string
+          example: "ring-001"
+        name:
+          type: string
+          example: "ring name"
+        description:
+          type: string
+          example: "description"
+        image_url:
+          type: string
+          format: uri
+          example: "https://example.com/ring.png"
+        site_url:
+          type: string
+          format: uri
+          example: "https://example.com"
+        services:
+          type: string
+          example: "install"
+        device_description:
+          $ref: '#/components/schemas/DeviceDescriptionRequest'
+    DeviceDescriptionRequest:
+      type: object
+      required:
+        - cin
+        - iin
+        - name
+        - batch
+      properties:
+        cin:
+          type: string
+          example: "CIN12345"
+        iin:
+          type: string
+          example: "IIN67890"
+        name:
+          type: string
+          example: "Ring name"
+        description:
+          type: string
+          example: "description"
+        image_url:
+          type: string
+          format: uri
+          example: "https://example.com/device.png"
+        site_url:
+          type: string
+          format: uri
+          example: "https://example.com/device"
+        batch:
+          $ref: '#/components/schemas/RingBatchRequest'
+    RingBatchRequest:
+      type: object
+      required:
+        - batch_id
+        - is_user
+        - is_user_name
+      properties:
+        batch_id:
+          type: integer
+          example: 1
+        is_user:
+          type: integer
+          example: 1
+        is_user_name:
+          type: string
+          example: "user name"
+    GetUserProfileResponse:
+      type: object
+      properties:
+        user_id:
+          type: integer
+          example: 3
+        name:
+          type: string
+          example: "e@mail.com"
+        email:
+          type: string
+          example: "name"
+        rings:
+          type: array
+          items:
+            $ref: '#/components/schemas/Ring'
+    Ring:
+      type: object
+      properties:
+        id:
+          type: string
+          example: "ring-001"
+        name:
+          type: string
+          example: "ring name"
+        description:
+          type: string
+          example: "description"
+        image_url:
+          type: string
+          format: uri
+          example: "https://example.com/ring.png"
+        site_url:
+          type: string
+          format: uri
+          example: "https://example.com"
+        services:
+          type: string
+          example: "install"
+        device_description:
+          $ref: '#/components/schemas/DeviceDescription'
+    DeviceDescription:
+      type: object
+      properties:
+        ID:
+          type: integer
+          example: 3
+        RingID:
+          type: string
+          example: "ring-id"
+        cin:
+          type: string
+          example: "CIN12345"
+        iin:
+          type: string
+          example: "IIN67890"
+        name:
+          type: string
+          example: "Ring name"
+        description:
+          type: string
+          example: "descriptions"
+        batch:
+          $ref: '#/components/schemas/RingBatch'
+        image_url:
+          type: string
+          format: uri
+          example: "https://example.com/device.png"
+        site_url:
+          type: string
+          format: uri
+          example: "https://example.com/device"
+    RingBatch:
+      type: object
+      properties:
+        ID:
+          type: integer
+          example: 3
+        DeviceDescriptionID:
+          type: integer
+          example: 3
+        batch_id:
+          type: integer
+          example: 1
+        is_user:
+          type: integer
+          example: 1
+        is_user_name:
+          type: string
+          example: "user name"
     HTTPError:
       type: object
       properties:

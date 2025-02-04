@@ -71,7 +71,6 @@ func (h *Handler) AttachRingHandler(w http.ResponseWriter, r *http.Request) {
 
 	_, err := h.repo.RingRepository().SaveRing(&ring)
 	if err != nil {
-		fmt.Println("ERROR:", err.Error())
 		http.Error(w, "", http.StatusBadRequest) //TODO: add error text
 	}
 
@@ -82,15 +81,12 @@ func (h *Handler) AttachRingHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	err = h.repo.UserRingRepository().SaveUserRing(&userRing)
 	if err != nil {
-		fmt.Println("ERROR:", err.Error())
-		http.Error(w, "", http.StatusBadRequest) //TODO: add error text
+		http.Error(w, "", http.StatusBadRequest) //TODO: add log error
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	if err := json.NewEncoder(w).Encode(ring.Id); err != nil { //TODO: add response
-		fmt.Printf("Ошибка кодирования JSON-ответа: %v", err)
-	}
+	//TODO: add response ???
 }
 
 func (h *Handler) UnlinkRingHandler(w http.ResponseWriter, r *http.Request) {
