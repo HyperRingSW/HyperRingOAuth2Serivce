@@ -36,12 +36,12 @@ func RegisterRoutes(router *mux.Router, handler dependency.Handler) {
 	}).Methods("GET") //
 
 	//Save User Ring
-	router.HandleFunc("/user/device", middleware.AuthMiddleware(func(w http.ResponseWriter, r *http.Request) {
+	router.HandleFunc("/user/ring", middleware.AuthMiddleware(func(w http.ResponseWriter, r *http.Request) {
 		handler.RingHandler().AttachRingHandler(w, r)
 	})).Methods("PATCH") //
 
 	//Unlink ring
-	router.HandleFunc("/user/device", middleware.AuthMiddleware(func(w http.ResponseWriter, r *http.Request) {
+	router.HandleFunc("/user/ring", middleware.AuthMiddleware(func(w http.ResponseWriter, r *http.Request) {
 		handler.RingHandler().UnlinkRingHandler(w, r)
 	})).Methods("DELETE") //?
 
