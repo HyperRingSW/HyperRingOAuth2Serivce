@@ -167,7 +167,7 @@ func (h *Handler) RefreshTokenHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	token := h.repo.TokenRepository().UserToken(int(userID))
+	token := h.repo.TokenRepository().UserToken(userID)
 	if token == nil {
 		http.Error(w, `{"error": "Token record not found"}`, http.StatusUnauthorized)
 		return
@@ -291,23 +291,25 @@ func (h *Handler) RefreshTokenHandler(w http.ResponseWriter, r *http.Request) {
 
 // LogoutHandler
 func (h *Handler) LogoutHandler(w http.ResponseWriter, r *http.Request) {
-	var body struct {
-		UserID   int    `json:"user_id"`
-		Provider string `json:"provider"`
-	}
-
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.UserID == 0 || body.Provider == "" {
-		http.Error(w, `{"error": "Invalid request body"}`, http.StatusBadRequest)
+	userID, ok := r.Context().Value("userID").(uint)
+	if !ok {
+		http.Error(w, `{"error": "Invalid user ID in context"}`, http.StatusUnauthorized)
 		return
 	}
 
-	token := h.repo.TokenRepository().UserToken(body.UserID)
+	provider, ok := r.Context().Value("provider").(string)
+	if !ok {
+		http.Error(w, `{"error": "Invalid user ID in context"}`, http.StatusUnauthorized)
+		return
+	}
+
+	token := h.repo.TokenRepository().UserToken(userID)
 	if token == nil {
 		http.Error(w, `{"error": "Token not found"}`, http.StatusBadRequest)
 		return
 	}
 
-	providerConfig, err := getProviderConfig(body.Provider, h.cfg.Authorization)
+	providerConfig, err := getProviderConfig(provider, h.cfg.Authorization)
 	if err != nil {
 		http.Error(w, `{"error": "Invalid provider"}`, http.StatusBadRequest)
 		return
@@ -321,7 +323,7 @@ func (h *Handler) LogoutHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Set data for provider
 	data := url.Values{}
-	switch body.Provider {
+	switch provider {
 	case models.PROVIDER_FB:
 		data.Set("next", "http://localhost:3000/")
 		data.Set("access_token", decryptAccess)
@@ -335,7 +337,6 @@ func (h *Handler) LogoutHandler(w http.ResponseWriter, r *http.Request) {
 
 	resp, err := http.PostForm(providerConfig.RevokeURL, data)
 	if err != nil {
-		fmt.Printf("Error revoking token: %v\n", err)
 		http.Error(w, `{"error": "Failed to revoke token"}`, http.StatusInternalServerError)
 		return
 	}

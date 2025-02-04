@@ -17,9 +17,9 @@ func RegisterRoutes(router *mux.Router, handler dependency.Handler) {
 		handler.AuthHandler().RefreshTokenHandler(w, r)
 	})).Methods("POST")
 
-	router.HandleFunc("/auth/logout", func(w http.ResponseWriter, r *http.Request) {
+	router.HandleFunc("/auth/logout", middleware.AuthMiddleware(func(w http.ResponseWriter, r *http.Request) {
 		handler.AuthHandler().LogoutHandler(w, r)
-	}).Methods("POST")
+	})).Methods("POST")
 
 	// User Management
 	router.HandleFunc("/user/profile", middleware.AuthMiddleware(func(w http.ResponseWriter, r *http.Request) {
