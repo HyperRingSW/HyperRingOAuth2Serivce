@@ -8,11 +8,11 @@ import (
 var jwtSecret = []byte("86194778010")
 
 // GenerateJWT
-func GenerateJWT(userID uint, role string, expirationTime int64) (string, int64, error) {
+func GenerateJWT(userID uint, provider string, expirationTime int64) (string, int64, error) {
 	claims := jwt.MapClaims{
-		"user_id": userID,
-		"role":    role,
-		"exp":     expirationTime,
+		"user_id":  userID,
+		"provider": provider,
+		"exp":      expirationTime,
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
@@ -41,5 +41,5 @@ func ParseJWT(tokenString string) (jwt.MapClaims, error) {
 		return claims, nil
 	}
 
-	return nil, errors.New("invalid token")
+	return nil, errors.New("invalid token2")
 }

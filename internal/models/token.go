@@ -10,6 +10,7 @@ type Token struct {
 	Provider     string    `gorm:"not null"`
 	AccessToken  string    `gorm:"not null"`
 	RefreshToken string    `gorm:"null"`
+	IDToken      string    `gorm:"null"`
 	ExpirationIn int       `gorm:"not null"`
 	ExpiresAt    time.Time `gorm:"not null"`
 	Data         string    `gorm:"type:json;not null"`

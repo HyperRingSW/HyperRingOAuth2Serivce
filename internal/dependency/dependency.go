@@ -22,13 +22,25 @@ type TokenRepository interface {
 	RefreshAccessToken(refreshToken string, needEncrypt bool) (*models.Token, error)
 }
 
+type RingRepository interface {
+	SaveRing(ring *models.Ring) (*models.Ring, error)
+}
+
+type UserRingRepository interface {
+	SaveUserRing(ur *models.UserRing) error
+	DeleteUserRing(ur *models.UserRing) error
+	GetUserRing(userID uint) ([]models.UserRing, error)
+}
+
 type Repository interface {
 	UserRepository() UserRepository
 	TokenRepository() TokenRepository
+	RingRepository() RingRepository
+	UserRingRepository() UserRingRepository
 }
 
 type AuthHandler interface {
-	AuthsHandler(w http.ResponseWriter, r *http.Request)
+	AuthUserHandler(w http.ResponseWriter, r *http.Request)
 	RefreshTokenHandler(w http.ResponseWriter, r *http.Request)
 	LogoutHandler(w http.ResponseWriter, r *http.Request)
 	//SignUpHandler(w http.ResponseWriter, r *http.Request)
@@ -41,7 +53,14 @@ type UserHandler interface {
 	UpdateUserProfile(w http.ResponseWriter, r *http.Request)
 }
 
+type RingHandler interface {
+	CreateRingHandler(w http.ResponseWriter, r *http.Request)
+	AttachRingHandler(w http.ResponseWriter, r *http.Request)
+	UnlinkRingHandler(w http.ResponseWriter, r *http.Request)
+}
+
 type Handler interface {
 	AuthHandler() AuthHandler
 	UserHandler() UserHandler
+	RingHandler() RingHandler
 }

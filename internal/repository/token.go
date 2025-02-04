@@ -17,20 +17,27 @@ func (repo *PostgresDB) TokenRepository() dependency.TokenRepository {
 }
 
 func (repo *PostgresDB) CreateOrUpdateToken(token models.Token) (*models.Token, error) {
-	//Шифруем токены
+
 	encryptedAccessToken, err := util.Encrypt(token.AccessToken)
 	if err != nil {
 		return nil, err
 	}
 	token.AccessToken = encryptedAccessToken
 
-	//Шифруем токены
 	if token.RefreshToken != "" {
 		encryptedRefreshToken, err := util.Encrypt(token.RefreshToken)
 		if err != nil {
 			return nil, err
 		}
 		token.RefreshToken = encryptedRefreshToken
+	}
+
+	if token.IDToken != "" {
+		encryptedIDToken, err := util.Encrypt(token.IDToken)
+		if err != nil {
+			return nil, err
+		}
+		token.IDToken = encryptedIDToken
 	}
 
 	newToken := models.Token{
@@ -40,6 +47,7 @@ func (repo *PostgresDB) CreateOrUpdateToken(token models.Token) (*models.Token, 
 		AccessToken:  token.AccessToken,
 		RefreshToken: token.RefreshToken,
 		ExpirationIn: token.ExpirationIn,
+		IDToken:      token.IDToken,
 		ExpiresAt:    time.Now().Add(time.Duration(token.ExpirationIn) * time.Second),
 		Data:         token.Data,
 		UpdatedAt:    token.UpdatedAt,
@@ -57,6 +65,7 @@ func (repo *PostgresDB) CreateOrUpdateToken(token models.Token) (*models.Token, 
 			"refresh_token": token.RefreshToken,
 			"expiration_in": token.ExpirationIn,
 			"expires_at":    token.ExpiresAt,
+			"id_token":      token.IDToken,
 			"updated_at":    token.UpdatedAt,
 			"data":          newToken.Data,
 		}
@@ -106,7 +115,6 @@ func (repo *PostgresDB) UpdateToken(token models.Token, provider string) (*model
 	return &token, nil
 }
 
-// CreateToken
 func (repo *PostgresDB) CreateToken(token *models.Token) error {
 	encryptedAccessToken, err := util.Encrypt(token.AccessToken)
 	if err != nil {
@@ -123,7 +131,6 @@ func (repo *PostgresDB) CreateToken(token *models.Token) error {
 	return repo.db.Create(&token).Error
 }
 
-// InvalidateToken
 func (repo *PostgresDB) InvalidateToken(accessToken string) error {
 	return repo.db.Where("access_token = ?", accessToken).Delete(&models.Token{}).Error
 }
@@ -139,7 +146,6 @@ func (repo *PostgresDB) UserToken(userId int) *models.Token {
 	return nil
 }
 
-// RefreshAccessToken
 func (repo *PostgresDB) RefreshAccessToken(refreshToken string, needEncrypt bool) (*models.Token, error) {
 	if needEncrypt {
 		encrypt, err := util.Encrypt(refreshToken)
