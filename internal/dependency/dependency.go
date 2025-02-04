@@ -24,6 +24,7 @@ type TokenRepository interface {
 
 type RingRepository interface {
 	SaveRing(ring *models.Ring) (*models.Ring, error)
+	GetRing(id string) (*models.Ring, error)
 }
 
 type UserRingRepository interface {
