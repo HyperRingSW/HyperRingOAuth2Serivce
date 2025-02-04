@@ -1,13 +1,32 @@
 package util
 
-import "log"
+import (
+	"encoding/json"
+	"log"
+)
 
 func LogError(err error) {
 	if err != nil {
-		log.Println("ERROR:", err)
+		data := map[string]string{
+			"level":   "ERROR",
+			"message": err.Error(),
+		}
+		if jsonData, jErr := json.Marshal(data); jErr == nil {
+			log.Println(string(jsonData))
+		} else {
+			log.Println("ERROR:", err)
+		}
 	}
 }
 
 func LogInfo(msg string) {
-	log.Println("INFO:", msg)
+	data := map[string]string{
+		"level":   "INFO",
+		"message": msg,
+	}
+	if jsonData, err := json.Marshal(data); err == nil {
+		log.Println(string(jsonData))
+	} else {
+		log.Println("INFO:", msg)
+	}
 }

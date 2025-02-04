@@ -18,7 +18,7 @@ type TokenRepository interface {
 	UpdateToken(token models.Token, provider string) (*models.Token, error)
 	CreateToken(token *models.Token) error
 	InvalidateToken(accessToken string) error
-	UserToken(userId uint) *models.Token
+	UserToken(userId uint, provider string) *models.Token
 	RefreshAccessToken(refreshToken string, needEncrypt bool) (*models.Token, error)
 }
 
@@ -47,11 +47,10 @@ type AuthHandler interface {
 }
 type UserHandler interface {
 	GetUserProfile(w http.ResponseWriter, r *http.Request)
-	UpdateUserProfile(w http.ResponseWriter, r *http.Request)
 }
 
 type RingHandler interface {
-	CreateRingHandler(w http.ResponseWriter, r *http.Request)
+	//CreateRingHandler(w http.ResponseWriter, r *http.Request)
 	AttachRingHandler(w http.ResponseWriter, r *http.Request)
 	UnlinkRingHandler(w http.ResponseWriter, r *http.Request)
 }

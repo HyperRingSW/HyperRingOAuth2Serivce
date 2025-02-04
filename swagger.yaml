@@ -1,7 +1,7 @@
 openapi: 3.0.0
 info:
   title: OAuth2 Server API
-  version: "1.0.0"
+  version: "0.0.7"
   description: API for managing OAuth2 authentication and authorization.
 servers:
   - url: http://localhost:8090
@@ -102,7 +102,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/GetUserProfileResponse'
+                $ref: '#/components/schemas/UserProfileResponse'
         '401':
           description: Unauthorized
           content:
@@ -126,7 +126,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/GetUserProfileResponse'
+                $ref: '#/components/schemas/UserProfileResponse'
         '400':
           description: Invalid request data
           content:
@@ -147,11 +147,10 @@ paths:
                 $ref: '#/components/schemas/HTTPError'
   /user/ring:
     patch:
-      summary: Update User Profile
-      description: Update user profile information
-      operationId: UpdateUserProfile
+      summary: Attaching ring to user
+      operationId: Ring
       requestBody:
-        description: Profile update data
+        description: Attaching ring to user
         required: true
         content:
           application/json:
@@ -163,8 +162,17 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/GetUserProfileResponse'
-
+                $ref: '#/components/schemas/UserProfileResponse'
+    delete:
+      summary: Attaching ring to user
+      operationId: Ring
+      responses:
+        '200':
+          description: Successful profile update
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfileResponse'
 components:
   schemas:
     AuthsRequest:
@@ -293,7 +301,7 @@ components:
         is_user_name:
           type: string
           example: "user name"
-    GetUserProfileResponse:
+    UserProfileResponse:
       type: object
       properties:
         user_id:
