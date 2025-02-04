@@ -144,7 +144,7 @@ func (h *Handler) AuthUserHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Генерируем JWT токен для вашего сервиса
+	// Generate JWT token
 	jwtToken, _, err := util.GenerateJWT(user.ID, body.Provider, expiresAt.Unix())
 	if err != nil {
 		http.Error(w, `{"error": "failed generate JWT"}`, http.StatusInternalServerError)
