@@ -13,7 +13,9 @@ type tokenRepository struct {
 }
 
 func (repo *PostgresDB) TokenRepository() dependency.TokenRepository {
-	return &tokenRepository{PostgresDB: repo}
+	return &tokenRepository{
+		PostgresDB: repo,
+	}
 }
 
 func (repo *PostgresDB) CreateOrUpdateToken(token models.Token) (*models.Token, error) {

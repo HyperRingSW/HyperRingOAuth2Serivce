@@ -12,7 +12,7 @@ func AuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		authHeader := r.Header.Get("Authorization")
 		if !strings.HasPrefix(authHeader, "Bearer ") {
-			util.LogError(errors.New("Authorization header format is incorrect"))
+			util.LogError(errors.New("authorization header format is incorrect"))
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
@@ -26,7 +26,6 @@ func AuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
 			return
 		}
 
-		// Преобразуем user_id из float64 (если он таковой) в uint.
 		idFloat, ok := claims["user_id"].(float64)
 		if !ok {
 			util.LogError(err)

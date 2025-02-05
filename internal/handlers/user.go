@@ -55,8 +55,8 @@ func (h *Handler) GetUserProfile(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(models.UserProfileGETResponse{
 		UserId: user.ID,
-		Name:   user.Email,
-		Email:  user.Name,
+		Name:   user.Name,
+		Email:  user.Email,
 		Rings:  rings,
 	})
 }

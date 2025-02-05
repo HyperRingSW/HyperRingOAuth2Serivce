@@ -25,11 +25,12 @@ type TokenRepository interface {
 type RingRepository interface {
 	SaveRing(ring *models.Ring) (*models.Ring, error)
 	GetRing(id string) (*models.Ring, error)
+	DeleteRing(ringId string) error
 }
 
 type UserRingRepository interface {
 	SaveUserRing(ur *models.UserRing) error
-	DeleteUserRing(ur *models.UserRing) error
+	DeleteUserRing(userId uint, ringId string) error
 	GetUserRing(userID uint) ([]models.UserRing, error)
 }
 
@@ -38,6 +39,7 @@ type Repository interface {
 	TokenRepository() TokenRepository
 	RingRepository() RingRepository
 	UserRingRepository() UserRingRepository
+	//TxBegin(func()) (Repository, error)
 }
 
 type AuthHandler interface {

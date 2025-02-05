@@ -2,7 +2,6 @@ package repository
 
 import (
 	"fmt"
-	"gorm.io/gorm/logger"
 	"log"
 
 	"gorm.io/driver/postgres"
@@ -22,7 +21,7 @@ func New(cfg config.DatabaseConfig, autoMigrate bool) (*PostgresDB, error) {
 	)
 
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
-		Logger: logger.Default.LogMode(logger.Silent),
+		//Logger: logger.Default.LogMode(logger.Silent),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed db connect: %w", err)

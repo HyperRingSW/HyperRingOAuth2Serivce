@@ -68,5 +68,34 @@ func (h *Handler) AttachRingHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) UnlinkRingHandler(w http.ResponseWriter, r *http.Request) {
+	userID, ok := r.Context().Value("userID").(uint)
+	if !ok {
+		util.LogError(errors.New("invalid user ID in context"))
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
 
+	var body struct {
+		RingId string `json:"ringId"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		util.LogError(err)
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	if err := h.repo.UserRingRepository().DeleteUserRing(userID, body.RingId); err != nil {
+		util.LogError(err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	if err := h.repo.RingRepository().DeleteRing(body.RingId); err != nil {
+		util.LogError(err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
 }
