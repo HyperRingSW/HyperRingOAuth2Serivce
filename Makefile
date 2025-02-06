@@ -1,4 +1,4 @@
-init: clean submodules proto generate-player-client generate
+init: generate
 
 generate:
 	go generate ./...

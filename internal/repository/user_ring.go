@@ -42,3 +42,14 @@ func (repo *userRingRepository) GetUserRing(userID uint) ([]models.UserRing, err
 	}
 	return rings, nil
 }
+
+func (repo *userRingRepository) CheckUserRing(userID uint, ringId string) (*models.UserRing, error) {
+	ring := models.UserRing{}
+
+	result := repo.db.Where("user_id = ? AND ring_id = ?", userID, ringId).First(&ring)
+	if result.RowsAffected == 0 {
+		return nil, errors.New("user ring not found")
+	}
+
+	return &ring, nil
+}

@@ -15,6 +15,7 @@ const (
 type Ring struct {
 	Id                string            `json:"id" gorm:"column:id;primaryKey"`
 	Name              string            `json:"name"`
+	UserNamed         string            `json:"user_named"`
 	Description       string            `json:"description,omitempty"`
 	ImageURL          string            `json:"image_url,omitempty"`
 	SiteURL           string            `json:"site_url,omitempty"`

@@ -28,6 +28,18 @@ func (repo *PostgresDB) SaveRing(ring *models.Ring) (*models.Ring, error) {
 	return &savedRing, nil
 }
 
+func (repo *PostgresDB) UpdateRingName(ringId string, userNamed string) error {
+	updates := map[string]interface{}{
+		"user_named": userNamed,
+	}
+
+	if err := repo.db.Model(&models.Ring{}).Where("id = ?", ringId).Updates(updates).Error; err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (repo *ringRepository) GetRing(id string) (*models.Ring, error) {
 	var ring models.Ring
 	if err := repo.db.
