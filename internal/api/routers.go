@@ -42,4 +42,12 @@ func RegisterRoutes(router *mux.Router, handler dependency.Handler) {
 	router.HandleFunc("/user/ring", middleware.AuthMiddleware(func(w http.ResponseWriter, r *http.Request) {
 		handler.RingHandler().UnlinkRingHandler(w, r)
 	})).Methods("DELETE")
+
+	router.HandleFunc("/swagger/", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "internal/public/swagger.html")
+	}).Methods("GET")
+
+	router.HandleFunc("/swagger.yaml", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "swagger.yaml")
+	}).Methods("GET")
 }
