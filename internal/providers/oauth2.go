@@ -221,11 +221,11 @@ func VerifyAppleIdentityToken(idToken string, providerConfig ProviderConfig) (ma
 	// Разбираем заголовок токена для получения параметра kid.
 	token, err := jwt.Parse(idToken, nil)
 	if err != nil {
-		return nil, fmt.Errorf("ошибка разбора token: %v", err)
+		return nil, fmt.Errorf("error decode token: %v", err)
 	}
 	kid, ok := token.Header["kid"].(string)
 	if !ok {
-		return nil, errors.New("kid отсутствует в заголовке token")
+		return nil, errors.New("kid header not found")
 	}
 
 	// Находим соответствующий ключ по kid.
@@ -237,42 +237,42 @@ func VerifyAppleIdentityToken(idToken string, providerConfig ProviderConfig) (ma
 		}
 	}
 	if jwk == nil {
-		return nil, errors.New("соответствующий ключ не найден")
+		return nil, errors.New("error fetching jwk")
 	}
 
 	pubKey, err := ParseRSAPublicKeyFromJWK(jwk)
 	if err != nil {
-		return nil, fmt.Errorf("ошибка получения публичного ключа: %v", err)
+		return nil, fmt.Errorf("error parsing public key: %v", err)
 	}
 
 	// Разбираем и проверяем токен.
 	parsedToken, err := jwt.Parse(idToken, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodRSA); !ok {
-			return nil, fmt.Errorf("неожиданный метод подписи: %v", token.Header["alg"])
+			return nil, fmt.Errorf("incorrect sign method: %v", token.Header["alg"])
 		}
 		return pubKey, nil
 	})
 	if err != nil {
-		return nil, fmt.Errorf("ошибка валидации token: %v", err)
+		return nil, fmt.Errorf("error token validation: %v", err)
 	}
 	if !parsedToken.Valid {
-		return nil, errors.New("невалидный token")
+		return nil, errors.New("invalid token")
 	}
 
 	claims, ok := parsedToken.Claims.(jwt.MapClaims)
 	if !ok {
-		return nil, errors.New("не удалось извлечь claims")
+		return nil, errors.New("cannot parse claims")
 	}
 
-	// Дополнительные проверки: audience и issuer.
+	// Other checking: audience и issuer.
 	if aud, ok := claims["aud"].(string); !ok || aud != providerConfig.ClientID {
-		return nil, errors.New("некорректный audience")
+		return nil, errors.New("invalid audience")
 	}
 	if iss, ok := claims["iss"].(string); !ok || iss != "https://appleid.apple.com" {
-		return nil, errors.New("некорректный issuer")
+		return nil, errors.New("invalid iss")
 	}
 	if exp, ok := claims["exp"].(float64); ok && int64(exp) < time.Now().Unix() {
-		return nil, errors.New("token истёк")
+		return nil, errors.New("token expired")
 	}
 
 	return claims, nil

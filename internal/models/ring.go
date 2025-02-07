@@ -15,12 +15,12 @@ const (
 type Ring struct {
 	Id                string            `json:"id" gorm:"column:id;primaryKey"`
 	Name              string            `json:"name"`
-	UserNamed         string            `json:"user_named"`
+	UserNamed         string            `json:"userNamed"`
 	Description       string            `json:"description,omitempty"`
-	ImageURL          string            `json:"image_url,omitempty"`
-	SiteURL           string            `json:"site_url,omitempty"`
+	ImageURL          string            `json:"imageUrl,omitempty"`
+	SiteURL           string            `json:"siteUrl,omitempty"`
 	Services          RingServiceType   `json:"services,omitempty"`
-	DeviceDescription DeviceDescription `json:"device_description,omitempty" gorm:"foreignKey:RingID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
+	DeviceDescription DeviceDescription `json:"deviceDescription,omitempty" gorm:"foreignKey:RingID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
 }
 
 // DeviceDescription
@@ -32,15 +32,15 @@ type DeviceDescription struct {
 	Name        string    `json:"name"`
 	Description string    `json:"description,omitempty"`
 	Batch       RingBatch `json:"batch" gorm:"foreignKey:DeviceDescriptionID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
-	ImageURL    string    `json:"image_url,omitempty"`
-	SiteURL     string    `json:"site_url,omitempty"`
+	ImageURL    string    `json:"imageUrl,omitempty"`
+	SiteURL     string    `json:"siteUrl,omitempty"`
 }
 
 // RingBatch
 type RingBatch struct {
 	ID                  uint   `gorm:"primaryKey"`
 	DeviceDescriptionID uint   `gorm:"index"` // foreign key device_descriptions.ID
-	BatchId             int    `json:"batch_id"`
-	IsUser              int64  `json:"is_user"`
-	IsUserName          string `json:"is_user_name"`
+	BatchId             int    `json:"batchId"`
+	IsUser              int64  `json:"isUser"`
+	IsUserName          string `json:"isUserName"`
 }

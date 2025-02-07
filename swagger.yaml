@@ -1,7 +1,7 @@
 openapi: 3.0.0
 info:
   title: OAuth2 Server API
-  version: "0.0.8"
+  version: "0.0.9"
   description: API for managing OAuth2 authentication and authorization.
 servers:
   - url: http://localhost:8090
@@ -218,26 +218,26 @@ components:
     GoogleAuthRequest:
       type: object
       properties:
-        id_token:
+        idToken:
           type: string
           description: ID token (Google and Apple)
           example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-        access_token:
+        accessToken:
           type: string
           description: Access token (Facebook and Google)
           example: "EAAJZC..."
-        refresh_token:
+        refreshToken:
           type: string
           description: Refresh token (only Google)
           example: "1//0gF..."
     AppleAuthRequest:
       type: object
       properties:
-        id_token:
+        idToken:
           type: string
           description: ID token (Google and Apple)
           example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-        access_token:
+        accessToken:
           type: string
           description: Access token (Facebook and Google)
           example: "EAAJZC..."
@@ -254,7 +254,7 @@ components:
         token:
           type: string
           example: "eyJhbGciOiJIUzI1NiIsInR5cCI6..."
-        expires_at:
+        expiresAt:
           type: integer
           format: int64
           example: 1700000000
@@ -262,7 +262,7 @@ components:
     UserProfileResponse:
       type: object
       properties:
-        user_id:
+        userId:
           type: integer
           example: 3
         name:
@@ -281,7 +281,7 @@ components:
         - id
         - name
         - services
-        - device_description
+        - deviceDescription
       properties:
         id:
           type: string
@@ -292,18 +292,18 @@ components:
         description:
           type: string
           example: "description"
-        image_url:
+        imageUrl:
           type: string
           format: uri
           example: "https://example.com/ring.png"
-        site_url:
+        siteUrl:
           type: string
           format: uri
           example: "https://example.com"
         services:
           type: string
           example: "install"
-        device_description:
+        deviceDescription:
           $ref: '#/components/schemas/DeviceDescriptionRequest'
     DeviceDescriptionRequest:
       type: object
@@ -325,11 +325,11 @@ components:
         description:
           type: string
           example: "description"
-        image_url:
+        imageUrl:
           type: string
           format: uri
           example: "https://example.com/device.png"
-        site_url:
+        siteUrl:
           type: string
           format: uri
           example: "https://example.com/device"
@@ -338,17 +338,17 @@ components:
     RingBatchRequest:
       type: object
       required:
-        - batch_id
-        - is_user
-        - is_user_name
+        - batchId
+        - isUser
+        - isUserName
       properties:
-        batch_id:
+        batchId:
           type: integer
           example: 1
-        is_user:
+        isUser:
           type: integer
           example: 1
-        is_user_name:
+        isUserName:
           type: string
           example: "user name"
     UpdateRingRequest:
