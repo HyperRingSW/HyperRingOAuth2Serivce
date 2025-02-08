@@ -219,16 +219,39 @@ func VerifyAppleIdentityToken(idToken string, providerConfig ProviderConfig) (ma
 	}
 
 	// Parse the token header to extract the 'kid' parameter.
-	token, err := jwt.Parse(idToken, nil)
+	/*token, err := jwt.Parse(idToken, nil)
 	if err != nil {
 		return nil, fmt.Errorf("error decode token: %v", err)
 	}
 	kid, ok := token.Header["kid"].(string)
 	if !ok {
 		return nil, errors.New("kid header not found")
-	}
+	}*/
 
 	// Locate the corresponding key using the 'kid'.
+	/*var jwk map[string]interface{}
+	for _, key := range certs {
+		if key["kid"] == kid {
+			jwk = key
+			break
+		}
+	}
+	if jwk == nil {
+		return nil, errors.New("error fetching jwk")
+	}*/
+
+	parser := new(jwt.Parser)
+	token, _, err := parser.ParseUnverified(idToken, jwt.MapClaims{})
+	if err != nil {
+		return nil, fmt.Errorf("failed parsing unverified token: %v", err)
+	}
+
+	kid, ok := token.Header["kid"].(string)
+	if !ok {
+		return nil, errors.New("kid header not found")
+	}
+
+	// find kid
 	var jwk map[string]interface{}
 	for _, key := range certs {
 		if key["kid"] == kid {

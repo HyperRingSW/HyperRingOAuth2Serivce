@@ -42,9 +42,11 @@ type GoogleAuthConfig struct {
 
 type AppleAuthConfig struct {
 	OAuthProviderConfig
-	TokenURL    string `env:"OAUTH_TOKEN_URL" env-default:"https://oauth2.googleapis.com/token"`
-	UserInfoURL string `env:"OAUTH_USER_INFO_URL" env-default:"https://www.googleapis.com/oauth2/v3/userinfo"`
-	RevokeURL   string `env:"OAUTH_REVOKE_URL" env-default:"https://www.facebook.com/logout.php"`
+	TokenURL    string `env:"OAUTH_TOKEN_URL" env-default:""`
+	UserInfoURL string `env:"OAUTH_USER_INFO_URL" env-default:""`
+	RevokeURL   string `env:"OAUTH_REVOKE_URL" env-default:""`
+	TeamID      string `env:"OAUTH_TEAM_ID" env-default:""`
+	PrivateKey  string `env:"OAUTH_PRIVATE_KEY" env-default:""`
 }
 
 type FacebookAuthConfig struct {

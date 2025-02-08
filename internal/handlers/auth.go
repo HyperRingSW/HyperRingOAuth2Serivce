@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/golang-jwt/jwt/v5"
 	"io"
 	"net/http"
 	"net/url"
@@ -225,11 +226,29 @@ func (h *Handler) RefreshTokenHandler(w http.ResponseWriter, r *http.Request) {
 		data.Set("client_secret", providerConfig.ClientSecret)
 		data.Set("grant_type", "fb_exchange_token")
 		data.Set("fb_exchange_token", token.AccessToken)
-	case models.PROVIDER_GOOGLE, models.PROVIDER_APPLE:
+	case models.PROVIDER_GOOGLE:
 		data.Set("client_id", providerConfig.ClientID)
 		data.Set("client_secret", "")
 		data.Set("grant_type", "refresh_token")
 		data.Set("refresh_token", token.RefreshToken)
+	case models.PROVIDER_APPLE:
+		claims := jwt.MapClaims{
+			"iss": providerConfig.TeamID,
+			"iat": time.Now().Unix(),
+			"exp": time.Now().Add(365 * 24 * time.Hour).Unix(),
+			"aud": "https://appleid.apple.com",
+			"sub": providerConfig.ClientID,
+		}
+
+		tokenJWT := jwt.NewWithClaims(jwt.SigningMethodES256, claims)
+		clientSecret, err := tokenJWT.SignedString(providerConfig.PrivateKey) // providerConfig.PrivateKey get from .p8 file
+		if err != nil {
+			util.LogError(err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		data.Set("client_secret", clientSecret)
 	default:
 		util.LogError(errors.New("invalid provider"))
 		w.WriteHeader(http.StatusBadRequest)
@@ -423,6 +442,8 @@ func getProviderConfig(provider string, cfg config.Authorization) (providers.Pro
 			TokenURL:     cfg.Apple.TokenURL,
 			UserInfoURL:  cfg.Apple.UserInfoURL,
 			RevokeURL:    cfg.Apple.RevokeURL,
+			TeamID:       cfg.Apple.TeamID,
+			PrivateKey:   cfg.Apple.PrivateKey,
 		}, nil
 	default:
 		return providers.ProviderConfig{}, fmt.Errorf("unsupported provider: %s", provider)

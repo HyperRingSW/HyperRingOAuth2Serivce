@@ -7,4 +7,6 @@ type ProviderConfig struct {
 	TokenURL     string
 	UserInfoURL  string
 	RevokeURL    string
+	TeamID       string //for apple
+	PrivateKey   string //for apple
 }
