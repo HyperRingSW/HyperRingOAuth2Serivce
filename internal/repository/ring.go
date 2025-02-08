@@ -11,7 +11,9 @@ type ringRepository struct {
 }
 
 func (repo *PostgresDB) RingRepository() dependency.RingRepository {
-	return &ringRepository{PostgresDB: repo}
+	return &ringRepository{
+		PostgresDB: repo,
+	}
 }
 
 func (repo *PostgresDB) SaveRing(ring *models.Ring) (*models.Ring, error) {
@@ -26,6 +28,18 @@ func (repo *PostgresDB) SaveRing(ring *models.Ring) (*models.Ring, error) {
 	return &savedRing, nil
 }
 
+func (repo *PostgresDB) UpdateRingName(ringId string, userNamed string) error {
+	updates := map[string]interface{}{
+		"user_named": userNamed,
+	}
+
+	if err := repo.db.Model(&models.Ring{}).Where("id = ?", ringId).Updates(updates).Error; err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (repo *ringRepository) GetRing(id string) (*models.Ring, error) {
 	var ring models.Ring
 	if err := repo.db.
@@ -35,4 +49,14 @@ func (repo *ringRepository) GetRing(id string) (*models.Ring, error) {
 		return nil, errors.New("error get ring: " + err.Error())
 	}
 	return &ring, nil
+}
+
+func (repo *ringRepository) DeleteRing(ringId string) error {
+	if err := repo.db.
+		Preload("DeviceDescription").
+		Preload("DeviceDescription.Batch").
+		Delete(&models.Ring{}, "id = ?", ringId).Error; err != nil {
+		return err
+	}
+	return nil
 }

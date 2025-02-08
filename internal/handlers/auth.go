@@ -26,13 +26,9 @@ func (h *Handler) AuthHandler() dependency.AuthHandler {
 	}
 }
 
-func (h *Handler) AuthUserHandler(w http.ResponseWriter, r *http.Request) {
-	var body struct {
-		Provider     string `json:"provider"`
-		IdToken      string `json:"idToken,omitempty"`      // Google, Apple
-		AccessToken  string `json:"accessToken,omitempty"`  // Facebook, Google
-		RefreshToken string `json:"refreshToken,omitempty"` // Google
-	}
+func (h *Handler) AuthUserHandler(w http.ResponseWriter, r *http.Request, provider string) {
+	body := models.AuthBodyRequest
+
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		util.LogError(err)
 		w.WriteHeader(http.StatusBadRequest)
@@ -40,7 +36,7 @@ func (h *Handler) AuthUserHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get provider config (URL user info, client id and etc)
-	providerConfig, err := getProviderConfig(body.Provider, h.cfg.Authorization)
+	providerConfig, err := getProviderConfig(provider, h.cfg.Authorization)
 	if err != nil {
 		util.LogError(err)
 		w.WriteHeader(http.StatusBadRequest)
@@ -49,7 +45,7 @@ func (h *Handler) AuthUserHandler(w http.ResponseWriter, r *http.Request) {
 
 	var claims map[string]interface{}
 
-	switch strings.ToLower(body.Provider) {
+	switch strings.ToLower(provider) {
 	case models.PROVIDER_GOOGLE:
 		if body.IdToken == "" {
 			util.LogError(errors.New("idToken is required"))
@@ -64,7 +60,7 @@ func (h *Handler) AuthUserHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		//Checking info on provider
-		_, err := providers.GetUserInfo(body.AccessToken, providerConfig.UserInfoURL, body.Provider)
+		_, err := providers.GetUserInfo(body.AccessToken, providerConfig.UserInfoURL, provider)
 		if err != nil {
 			util.LogError(err)
 			w.WriteHeader(http.StatusBadRequest)
@@ -97,7 +93,7 @@ func (h *Handler) AuthUserHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	default:
 		util.LogError(errors.New("provider not supported"))
-		w.WriteHeader(http.StatusBadRequest)
+		w.WriteHeader(http.StatusNotFound)
 		return
 	}
 
@@ -143,7 +139,7 @@ func (h *Handler) AuthUserHandler(w http.ResponseWriter, r *http.Request) {
 	// Create token
 	newToken := models.Token{
 		UserID:       user.ID,
-		Provider:     body.Provider,
+		Provider:     provider,
 		AccessToken:  body.AccessToken,
 		RefreshToken: body.RefreshToken,
 		IDToken:      body.IdToken,
@@ -160,7 +156,7 @@ func (h *Handler) AuthUserHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Generate JWT token
-	jwtToken, _, err := util.GenerateJWT(user.ID, body.Provider, expiresAt.Unix())
+	jwtToken, _, err := util.GenerateJWT(user.ID, provider, expiresAt.Unix())
 	if err != nil {
 		util.LogError(err)
 		w.WriteHeader(http.StatusInternalServerError)

@@ -11,7 +11,9 @@ type userRingRepository struct {
 }
 
 func (repo *PostgresDB) UserRingRepository() dependency.UserRingRepository {
-	return &userRingRepository{PostgresDB: repo}
+	return &userRingRepository{
+		PostgresDB: repo,
+	}
 }
 
 func (repo *PostgresDB) SaveUserRing(ur *models.UserRing) error {
@@ -26,8 +28,8 @@ func (repo *PostgresDB) SaveUserRing(ur *models.UserRing) error {
 	return nil
 }
 
-func (repo *PostgresDB) DeleteUserRing(ur *models.UserRing) error {
-	if err := repo.db.Delete(ur).Error; err != nil {
+func (repo *PostgresDB) DeleteUserRing(userId uint, ringId string) error {
+	if err := repo.db.Delete(&models.UserRing{}, "user_id = ? AND ring_id = ?", userId, ringId).Error; err != nil {
 		return err
 	}
 	return nil
@@ -39,4 +41,15 @@ func (repo *userRingRepository) GetUserRing(userID uint) ([]models.UserRing, err
 		return nil, err
 	}
 	return rings, nil
+}
+
+func (repo *userRingRepository) CheckUserRing(userID uint, ringId string) (*models.UserRing, error) {
+	ring := models.UserRing{}
+
+	result := repo.db.Where("user_id = ? AND ring_id = ?", userID, ringId).First(&ring)
+	if result.RowsAffected == 0 {
+		return nil, errors.New("user ring not found")
+	}
+
+	return &ring, nil
 }

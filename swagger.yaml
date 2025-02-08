@@ -1,42 +1,67 @@
 openapi: 3.0.0
 info:
   title: OAuth2 Server API
-  version: "0.0.7"
+  version: "0.0.9"
   description: API for managing OAuth2 authentication and authorization.
 servers:
   - url: http://localhost:8090
+
 paths:
-  /auth/user:
+  /auth/google:
     post:
-      summary: Authenticate with providers (Google, Apple, Facebook)
+      summary: Authenticate user with a google provider
       description: |
-        This endpoint retrieves JWT and etc tokens
-      operationId: authenticateUser
+        Authenticate users via Google.
+      operationId: authenticateUserWithProvider
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/AuthsRequest'
+              $ref: '#/components/schemas/GoogleAuthRequest'
       responses:
         '200':
-          description: Successful registration
+          description: Successful authentication
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/AuthResponse'
         '400':
+          description: Bad request
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPError'
-          description: HTTP Error
         '500':
           description: Internal server error
+  /auth/apple:
+    post:
+      summary: Authenticate user with a apple provider
+      description: |
+        Authenticate users via Apple
+      operationId: authenticateUserWithProvider
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AppleAuthRequest'
+      responses:
+        '200':
+          description: Successful authentication
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          description: Bad request
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPError'
+        '500':
+          description: Internal server error
+
   /auth/token/refresh:
     post:
       summary: Token Refresh
@@ -67,6 +92,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPError'
+
   /auth/logout:
     post:
       summary: User Logout
@@ -91,6 +117,7 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPError'
+
   /user/profile:
     get:
       summary: Get User Profile
@@ -109,17 +136,24 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPError'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPError'
+
+  /user/ring:
     patch:
-      summary: Update User Profile
-      description: Update user profile information
-      operationId: UpdateUserProfile
+      summary: Attaching ring to user
+      operationId: Ring
       requestBody:
-        description: Profile update data
+        description: Attaching ring to user
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/UpdateUserProfileRequest'
+              $ref: '#/components/schemas/Ring'
       responses:
         '200':
           description: Successful profile update
@@ -127,6 +161,22 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/UserProfileResponse'
+
+    post:
+      summary: Update user ring name
+      description: Updates the name of a ring assigned to a user.
+      operationId: UpdateRingHandler
+      security:
+        - Bearer: [ ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateRingRequest'
+      responses:
+        '200':
+          description: Ring name updated successfully
         '400':
           description: Invalid request data
           content:
@@ -139,32 +189,21 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPError'
+        '404':
+          description: User ring not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPError'
         '500':
           description: Internal server error
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPError'
-  /user/ring:
-    patch:
-      summary: Attaching ring to user
-      operationId: Ring
-      requestBody:
-        description: Attaching ring to user
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/UserDeviceRequest'
-      responses:
-        '200':
-          description: Successful profile update
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/UserProfileResponse'
+
     delete:
-      summary: Attaching ring to user
+      summary: Detach ring from user
       operationId: Ring
       responses:
         '200':
@@ -173,65 +212,76 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/UserProfileResponse'
+
 components:
   schemas:
-    AuthsRequest:
+    GoogleAuthRequest:
       type: object
-      required:
-        provider
       properties:
-        provider:
-          type: string
-          enum: [ google, apple, facebook ]
-          description: Provider name
-          example: google
-        id_token:
+        idToken:
           type: string
           description: ID token (Google and Apple)
           example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-        access_token:
+        accessToken:
           type: string
           description: Access token (Facebook and Google)
           example: "EAAJZC..."
-        refresh_token:
+        refreshToken:
           type: string
           description: Refresh token (only Google)
           example: "1//0gF..."
+    AppleAuthRequest:
+      type: object
+      properties:
+        idToken:
+          type: string
+          description: ID token (Google and Apple)
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+        accessToken:
+          type: string
+          description: Access token (Facebook and Google)
+          example: "EAAJZC..."
     LogoutSuccess:
       type: object
       properties:
         message:
           type: string
           example: "logged out"
+
     AuthResponse:
       type: object
       properties:
         token:
           type: string
           example: "eyJhbGciOiJIUzI1NiIsInR5cCI6..."
-        expires_at:
+        expiresAt:
           type: integer
           format: int64
           example: 1700000000
-    UpdateUserProfileRequest:
+
+    UserProfileResponse:
       type: object
       properties:
-        email:
-          type: string
-          example: "new_email@example.com"
+        userId:
+          type: integer
+          example: 3
         name:
           type: string
-          example: "Jane Doe"
-      required:
-        - email
-        - name
-    UserDeviceRequest:
+          example: "name"
+        email:
+          type: string
+          example: "e@mail.com"
+        rings:
+          type: array
+          items:
+            $ref: '#/components/schemas/Ring'
+    Ring:
       type: object
       required:
         - id
         - name
         - services
-        - device_description
+        - deviceDescription
       properties:
         id:
           type: string
@@ -242,18 +292,18 @@ components:
         description:
           type: string
           example: "description"
-        image_url:
+        imageUrl:
           type: string
           format: uri
           example: "https://example.com/ring.png"
-        site_url:
+        siteUrl:
           type: string
           format: uri
           example: "https://example.com"
         services:
           type: string
           example: "install"
-        device_description:
+        deviceDescription:
           $ref: '#/components/schemas/DeviceDescriptionRequest'
     DeviceDescriptionRequest:
       type: object
@@ -275,11 +325,11 @@ components:
         description:
           type: string
           example: "description"
-        image_url:
+        imageUrl:
           type: string
           format: uri
           example: "https://example.com/device.png"
-        site_url:
+        siteUrl:
           type: string
           format: uri
           example: "https://example.com/device"
@@ -288,109 +338,33 @@ components:
     RingBatchRequest:
       type: object
       required:
-        - batch_id
-        - is_user
-        - is_user_name
+        - batchId
+        - isUser
+        - isUserName
       properties:
-        batch_id:
+        batchId:
           type: integer
           example: 1
-        is_user:
+        isUser:
           type: integer
           example: 1
-        is_user_name:
+        isUserName:
           type: string
           example: "user name"
-    UserProfileResponse:
+    UpdateRingRequest:
       type: object
+      required:
+        - ringId
+        - userNamed
       properties:
-        user_id:
-          type: integer
-          example: 3
-        name:
+        ringId:
           type: string
-          example: "e@mail.com"
-        email:
+          description: The unique identifier of the ring
+          example: "ring-123"
+        userNamed:
           type: string
-          example: "name"
-        rings:
-          type: array
-          items:
-            $ref: '#/components/schemas/Ring'
-    Ring:
-      type: object
-      properties:
-        id:
-          type: string
-          example: "ring-001"
-        name:
-          type: string
-          example: "ring name"
-        description:
-          type: string
-          example: "description"
-        image_url:
-          type: string
-          format: uri
-          example: "https://example.com/ring.png"
-        site_url:
-          type: string
-          format: uri
-          example: "https://example.com"
-        services:
-          type: string
-          example: "install"
-        device_description:
-          $ref: '#/components/schemas/DeviceDescription'
-    DeviceDescription:
-      type: object
-      properties:
-        ID:
-          type: integer
-          example: 3
-        RingID:
-          type: string
-          example: "ring-id"
-        cin:
-          type: string
-          example: "CIN12345"
-        iin:
-          type: string
-          example: "IIN67890"
-        name:
-          type: string
-          example: "Ring name"
-        description:
-          type: string
-          example: "descriptions"
-        batch:
-          $ref: '#/components/schemas/RingBatch'
-        image_url:
-          type: string
-          format: uri
-          example: "https://example.com/device.png"
-        site_url:
-          type: string
-          format: uri
-          example: "https://example.com/device"
-    RingBatch:
-      type: object
-      properties:
-        ID:
-          type: integer
-          example: 3
-        DeviceDescriptionID:
-          type: integer
-          example: 3
-        batch_id:
-          type: integer
-          example: 1
-        is_user:
-          type: integer
-          example: 1
-        is_user_name:
-          type: string
-          example: "user name"
+          description: The new name for the ring
+          example: "My Favorite Ring"
     HTTPError:
       type: object
       properties:

@@ -32,11 +32,7 @@ func main() {
 	rateLimitedRouter := middleware.RateLimiter(router)
 
 	// setting CORS
-	corsOptions := corsHandler.CORS(
-		corsHandler.AllowedOrigins([]string{"http://localhost:3000"}),
-		corsHandler.AllowedMethods([]string{"GET", "POST", "PATCH", "DELETE", "OPTIONS"}),
-		corsHandler.AllowedHeaders([]string{"Content-Type", "Authorization"}),
-	)
+	corsOptions := corsHandler.CORS()
 
 	log.Printf("Server running %s", cfg.App.Addr)
 	log.Fatal(http.ListenAndServe(cfg.App.Addr, corsOptions(rateLimitedRouter)))

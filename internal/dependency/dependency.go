@@ -24,13 +24,16 @@ type TokenRepository interface {
 
 type RingRepository interface {
 	SaveRing(ring *models.Ring) (*models.Ring, error)
+	UpdateRingName(ringId string, userNamed string) error
 	GetRing(id string) (*models.Ring, error)
+	DeleteRing(ringId string) error
 }
 
 type UserRingRepository interface {
 	SaveUserRing(ur *models.UserRing) error
-	DeleteUserRing(ur *models.UserRing) error
+	DeleteUserRing(userId uint, ringId string) error
 	GetUserRing(userID uint) ([]models.UserRing, error)
+	CheckUserRing(userID uint, ringId string) (*models.UserRing, error)
 }
 
 type Repository interface {
@@ -38,10 +41,11 @@ type Repository interface {
 	TokenRepository() TokenRepository
 	RingRepository() RingRepository
 	UserRingRepository() UserRingRepository
+	//TxBegin(func()) (Repository, error)
 }
 
 type AuthHandler interface {
-	AuthUserHandler(w http.ResponseWriter, r *http.Request)
+	AuthUserHandler(w http.ResponseWriter, r *http.Request, provider string)
 	RefreshTokenHandler(w http.ResponseWriter, r *http.Request)
 	LogoutHandler(w http.ResponseWriter, r *http.Request)
 }
@@ -50,8 +54,8 @@ type UserHandler interface {
 }
 
 type RingHandler interface {
-	//CreateRingHandler(w http.ResponseWriter, r *http.Request)
 	AttachRingHandler(w http.ResponseWriter, r *http.Request)
+	UpdateRingHandler(w http.ResponseWriter, r *http.Request)
 	UnlinkRingHandler(w http.ResponseWriter, r *http.Request)
 }
 

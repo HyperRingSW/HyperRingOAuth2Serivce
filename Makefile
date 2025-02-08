@@ -1,14 +1,4 @@
-#.DEFAULT_GOAL := up
-#VERSION := $(shell git describe --tags --always --long |sed -e "s/^v//")
-#GO_LINT_VERSION := v1.53.3
-
-
-#PLAYER_OPENAPI_PATH = openapi/upl-openapi/frontend/cap/player/v1/openapi.yaml
-#PLAYER_GENERATED_CODE_PATH = openapi/api/player
-
-.PHONY: generate proto
-
-init: clean submodules proto generate-player-client generate
+init: generate
 
 generate:
 	go generate ./...

@@ -62,25 +62,25 @@ func GetUserInfo(accessToken string, userInfoURL string, provider string) (map[s
 	return userInfo, nil
 }
 
-// ParseRSAPublicKeyFromJWK извлекает RSA публичный ключ из JWK (JSON Web Key).
+// ParseRSAPublicKeyFromJWK extracts the RSA public key from the JWK (JSON Web Key).
 func ParseRSAPublicKeyFromJWK(jwk map[string]interface{}) (*rsa.PublicKey, error) {
 	nStr, ok := jwk["n"].(string)
 	if !ok {
-		return nil, errors.New("поле 'n' отсутствует в JWK")
+		return nil, errors.New("jwk n is not a string")
 	}
 	eStr, ok := jwk["e"].(string)
 	if !ok {
-		return nil, errors.New("поле 'e' отсутствует в JWK")
+		return nil, errors.New("jwk e is not a string")
 	}
 
-	// Декодируем значения, представленные в формате base64 URL без отступов.
+	// Decode values that are encoded in base64 URL format without padding.
 	nBytes, err := base64.RawURLEncoding.DecodeString(nStr)
 	if err != nil {
-		return nil, fmt.Errorf("ошибка декодирования n: %v", err)
+		return nil, fmt.Errorf("failed to decode jwk n: %w", err)
 	}
 	eBytes, err := base64.RawURLEncoding.DecodeString(eStr)
 	if err != nil {
-		return nil, fmt.Errorf("ошибка декодирования e: %v", err)
+		return nil, fmt.Errorf("failed to decode jwk e: %w", err)
 	}
 
 	n := new(big.Int).SetBytes(nBytes)
@@ -95,24 +95,24 @@ func ParseRSAPublicKeyFromJWK(jwk map[string]interface{}) (*rsa.PublicKey, error
 	}, nil
 }
 
-// fetchCerts получает сертификаты (JWK) с указанного URL.
+// fetchCerts retrieves certificates (JWK) from the specified URL.
 func fetchCerts(url string) ([]map[string]interface{}, error) {
 	resp, err := http.Get(url)
 	if err != nil {
-		return nil, fmt.Errorf("не удалось получить сертификаты с %s: %v", url, err)
+		return nil, fmt.Errorf("failed to fetch certificates %s: %w", url, err)
 	}
 	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, fmt.Errorf("ошибка чтения ответа: %v", err)
+		return nil, fmt.Errorf("failed to read certificates %s: %w", url, err)
 	}
 
 	var data struct {
 		Keys []map[string]interface{} `json:"keys"`
 	}
 	if err := json.Unmarshal(body, &data); err != nil {
-		return nil, fmt.Errorf("ошибка парсинга JSON: %v", err)
+		return nil, fmt.Errorf("failed to unmarshal certificates %s: %w", url, err)
 	}
 	return data.Keys, nil
 }
@@ -183,11 +183,11 @@ func VerifyGoogleIDToken(idToken string, providerConfig ProviderConfig) (map[str
 	return claims, nil
 }
 
-// GetFacebookUserInfo получает информацию о пользователе из Facebook, используя access_token и указанный URL API.
+// GetFacebookUserInfo obtains user information from Facebook using the access_token and the specified API URL.
 func GetFacebookUserInfo(accessToken string, userInfoURL string) (map[string]interface{}, error) {
 	req, err := http.NewRequest("GET", userInfoURL, nil)
 	if err != nil {
-		return nil, fmt.Errorf("ошибка создания запроса: %v", err)
+		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
 
 	q := req.URL.Query()
@@ -196,39 +196,39 @@ func GetFacebookUserInfo(accessToken string, userInfoURL string) (map[string]int
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("ошибка запроса к Facebook: %v", err)
+		return nil, fmt.Errorf("failed to fetch user info: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("Facebook вернул статус: %d", resp.StatusCode)
+		return nil, fmt.Errorf("fb user info fetch failed: %s code: %d", resp.Status, resp.StatusCode)
 	}
 
 	var result map[string]interface{}
 	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return nil, fmt.Errorf("ошибка декодирования ответа Facebook: %v", err)
+		return nil, fmt.Errorf("fb failed to decode user info: %w", err)
 	}
 	return result, nil
 }
 
-// VerifyAppleIdentityToken проверяет Apple identity token, используя публичные ключи Apple, и возвращает claims.
+// VerifyAppleIdentityToken verifies the Apple identity token using Apple's public keys and returns the claims.
 func VerifyAppleIdentityToken(idToken string, providerConfig ProviderConfig) (map[string]interface{}, error) {
 	certs, err := fetchCerts("https://appleid.apple.com/auth/keys")
 	if err != nil {
 		return nil, err
 	}
 
-	// Разбираем заголовок токена для получения параметра kid.
+	// Parse the token header to extract the 'kid' parameter.
 	token, err := jwt.Parse(idToken, nil)
 	if err != nil {
-		return nil, fmt.Errorf("ошибка разбора token: %v", err)
+		return nil, fmt.Errorf("error decode token: %v", err)
 	}
 	kid, ok := token.Header["kid"].(string)
 	if !ok {
-		return nil, errors.New("kid отсутствует в заголовке token")
+		return nil, errors.New("kid header not found")
 	}
 
-	// Находим соответствующий ключ по kid.
+	// Locate the corresponding key using the 'kid'.
 	var jwk map[string]interface{}
 	for _, key := range certs {
 		if key["kid"] == kid {
@@ -237,42 +237,42 @@ func VerifyAppleIdentityToken(idToken string, providerConfig ProviderConfig) (ma
 		}
 	}
 	if jwk == nil {
-		return nil, errors.New("соответствующий ключ не найден")
+		return nil, errors.New("error fetching jwk")
 	}
 
 	pubKey, err := ParseRSAPublicKeyFromJWK(jwk)
 	if err != nil {
-		return nil, fmt.Errorf("ошибка получения публичного ключа: %v", err)
+		return nil, fmt.Errorf("error parsing public key: %v", err)
 	}
 
-	// Разбираем и проверяем токен.
+	// Parse and verify the token.
 	parsedToken, err := jwt.Parse(idToken, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodRSA); !ok {
-			return nil, fmt.Errorf("неожиданный метод подписи: %v", token.Header["alg"])
+			return nil, fmt.Errorf("incorrect sign method: %v", token.Header["alg"])
 		}
 		return pubKey, nil
 	})
 	if err != nil {
-		return nil, fmt.Errorf("ошибка валидации token: %v", err)
+		return nil, fmt.Errorf("error token validation: %v", err)
 	}
 	if !parsedToken.Valid {
-		return nil, errors.New("невалидный token")
+		return nil, errors.New("invalid token")
 	}
 
 	claims, ok := parsedToken.Claims.(jwt.MapClaims)
 	if !ok {
-		return nil, errors.New("не удалось извлечь claims")
+		return nil, errors.New("cannot parse claims")
 	}
 
-	// Дополнительные проверки: audience и issuer.
+	// Other checking: audience и issuer.
 	if aud, ok := claims["aud"].(string); !ok || aud != providerConfig.ClientID {
-		return nil, errors.New("некорректный audience")
+		return nil, errors.New("invalid audience")
 	}
 	if iss, ok := claims["iss"].(string); !ok || iss != "https://appleid.apple.com" {
-		return nil, errors.New("некорректный issuer")
+		return nil, errors.New("invalid iss")
 	}
 	if exp, ok := claims["exp"].(float64); ok && int64(exp) < time.Now().Unix() {
-		return nil, errors.New("token истёк")
+		return nil, errors.New("token expired")
 	}
 
 	return claims, nil
