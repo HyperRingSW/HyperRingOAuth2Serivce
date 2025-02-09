@@ -31,11 +31,23 @@ func RunMigrations(db *gorm.DB) error {
 			FROM rings
 			WHERE services IS NOT NULL
 		`).Error; err != nil {
-			return fmt.Errorf("ошибка переноса данных из колонки services: %w", err)
+			return fmt.Errorf("failed transfer data from services: %w", err)
 		}
 
 		if err := db.Migrator().DropColumn(&models.Ring{}, "services"); err != nil {
-			return fmt.Errorf("ошибка удаления колонки services: %w", err)
+			return fmt.Errorf("failed drop column services: %w", err)
+		}
+	}
+
+	if db.Migrator().HasColumn(&models.DeviceDescription{}, "image_url") {
+		if err := db.Migrator().DropColumn(&models.DeviceDescription{}, "image_url"); err != nil {
+			return fmt.Errorf("failed drop column image_url: %w", err)
+		}
+	}
+
+	if db.Migrator().HasColumn(&models.DeviceDescription{}, "site_url") {
+		if err := db.Migrator().DropColumn(&models.DeviceDescription{}, "site_url"); err != nil {
+			return fmt.Errorf("failed drop column site_url: %w", err)
 		}
 	}
 
