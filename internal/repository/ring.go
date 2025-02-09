@@ -4,6 +4,8 @@ import (
 	"errors"
 	"oauth2-server/internal/dependency"
 	"oauth2-server/internal/models"
+	"oauth2-server/internal/util"
+	"strings"
 )
 
 type ringRepository struct {
@@ -29,6 +31,11 @@ func (repo *PostgresDB) SaveRing(ring *models.Ring) (*models.Ring, error) {
 }
 
 func (repo *PostgresDB) UpdateRingName(ringId string, userNamed string) error {
+	userNamed = strings.TrimSpace(userNamed)
+	userNamed, err := util.Encrypt(userNamed)
+	if err != nil {
+		return err
+	}
 	updates := map[string]interface{}{
 		"user_named": userNamed,
 	}

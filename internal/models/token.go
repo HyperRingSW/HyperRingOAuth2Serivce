@@ -13,6 +13,6 @@ type Token struct {
 	IDToken      string    `gorm:"null"`
 	ExpirationIn int       `gorm:"not null"`
 	ExpiresAt    time.Time `gorm:"not null"`
-	Data         string    `gorm:"type:json;not null"`
+	Data         string    `gorm:"not null"` //type:json;
 	UpdatedAt    time.Time `gorm:"not null"`
 }

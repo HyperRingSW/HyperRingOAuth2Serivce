@@ -144,7 +144,7 @@ paths:
                 $ref: '#/components/schemas/HTTPError'
 
   /user/ring:
-    patch:
+    post:
       summary: Attaching ring to user
       operationId: Ring
       requestBody:
@@ -162,7 +162,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/UserProfileResponse'
 
-    post:
+    patch:
       summary: Update user ring name
       description: Updates the name of a ring assigned to a user.
       operationId: UpdateRingHandler

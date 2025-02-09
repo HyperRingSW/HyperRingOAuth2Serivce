@@ -19,7 +19,6 @@ type TokenRepository interface {
 	CreateToken(token *models.Token) error
 	InvalidateToken(accessToken string) error
 	UserToken(userId uint, provider string) *models.Token
-	RefreshAccessToken(refreshToken string, needEncrypt bool) (*models.Token, error)
 }
 
 type RingRepository interface {

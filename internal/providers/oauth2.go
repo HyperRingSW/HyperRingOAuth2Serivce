@@ -145,7 +145,7 @@ func VerifyGoogleIDToken(idToken string, providerConfig ProviderConfig) (map[str
 		}
 	}
 	if jwk == nil {
-		return nil, errors.New("error fetching jwk")
+		return nil, errors.New("error fetching google jwk")
 	}
 
 	pubKey, err := ParseRSAPublicKeyFromJWK(jwk)
