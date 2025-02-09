@@ -277,16 +277,14 @@ components:
             $ref: '#/components/schemas/Ring'
     Ring:
       type: object
-      required:
-        - id
-        - name
-        - services
-        - deviceDescription
       properties:
         id:
           type: string
           example: "ring-001"
         name:
+          type: string
+          example: "ring name"
+        userNamed:
           type: string
           example: "ring name"
         description:

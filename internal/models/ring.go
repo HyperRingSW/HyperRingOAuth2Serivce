@@ -13,14 +13,21 @@ const (
 )
 
 type Ring struct {
-	Id                string            `json:"id" gorm:"column:id;primaryKey"`
-	Name              string            `json:"name"`
-	UserNamed         string            `json:"userNamed"`
-	Description       string            `json:"description,omitempty"`
-	ImageURL          string            `json:"imageUrl,omitempty"`
-	SiteURL           string            `json:"siteUrl,omitempty"`
-	Services          RingServiceType   `json:"services,omitempty"`
+	Id          string `json:"id" gorm:"column:id;primaryKey"`
+	Name        string `json:"name,omitempty"`
+	UserNamed   string `json:"userNamed,omitempty"`
+	Description string `json:"description,omitempty"`
+	ImageURL    string `json:"imageUrl,omitempty"`
+	SiteURL     string `json:"siteUrl,omitempty"`
+	// Указываем связь с новой таблицей ring_services
+	Services          []RingService     `json:"services,omitempty" gorm:"foreignKey:RingID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
 	DeviceDescription DeviceDescription `json:"deviceDescription,omitempty" gorm:"foreignKey:RingID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
+}
+
+type RingService struct {
+	ID      int             `gorm:"primaryKey" json:"id"`
+	RingID  string          `json:"ringId"` // FK rings.id
+	Service RingServiceType `json:"service"`
 }
 
 // DeviceDescription
