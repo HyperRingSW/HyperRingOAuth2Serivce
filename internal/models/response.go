@@ -7,26 +7,26 @@ type UserProfileGETResponse struct {
 }
 
 type RingResponse struct {
-	Id                string
-	Name              string
-	UserNamed         string
-	Description       string
-	ImageURL          string
-	SiteURL           string
-	Services          []string
-	DeviceDescription DeviceDescriptionResponse
+	Id                string                    `json:"id"`
+	Name              string                    `json:"name"`
+	UserNamed         string                    `json:"userName"`
+	Description       string                    `json:"description"`
+	ImageURL          string                    `json:"imageUrl"`
+	SiteURL           string                    `json:"siteUrl"`
+	Services          []string                  `json:"services"`
+	DeviceDescription DeviceDescriptionResponse `json:"deviceDescription"`
 }
 
 type DeviceDescriptionResponse struct {
-	CIN         string
-	IIN         string
-	Name        string
-	Description string
-	Batch       RingBatchResponse
+	CIN         string            `json:"cin"`
+	IIN         string            `json:"iin"`
+	Name        string            `json:"name"`
+	Description string            `json:"description"`
+	Batch       RingBatchResponse `json:"batch"`
 }
 
 type RingBatchResponse struct {
-	BatchId    int
-	IsUser     int64
-	IsUserName string
+	BatchId    int    `json:"batchId"`
+	IsUser     int64  `json:"isUser"`
+	IsUserName string `json:"isUserName"`
 }

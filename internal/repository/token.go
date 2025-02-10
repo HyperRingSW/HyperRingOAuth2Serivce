@@ -25,7 +25,7 @@ func (repo *PostgresDB) CreateOrUpdateToken(token models.Token) (*models.Token, 
 		if err != nil {
 			return nil, err
 		}
-
+		token.AccessToken = enc
 		encryptedAccessToken = enc
 	}
 	encryptedRefreshToken := ""
@@ -43,8 +43,8 @@ func (repo *PostgresDB) CreateOrUpdateToken(token models.Token) (*models.Token, 
 		if err != nil {
 			return nil, err
 		}
+		token.IDToken = enc
 		encryptedIDToken = enc
-
 	}
 
 	encryptedData := ""
@@ -53,6 +53,7 @@ func (repo *PostgresDB) CreateOrUpdateToken(token models.Token) (*models.Token, 
 		if err != nil {
 			return nil, err
 		}
+		token.Data = enc
 		encryptedData = enc
 	}
 
@@ -81,7 +82,7 @@ func (repo *PostgresDB) CreateOrUpdateToken(token models.Token) (*models.Token, 
 			"refresh_token": encryptedRefreshToken,
 			"expiration_in": token.ExpirationIn,
 			"expires_at":    token.ExpiresAt,
-			"id_token":      token.IDToken,
+			"id_token":      encryptedIDToken,
 			"updated_at":    token.UpdatedAt,
 			"data":          encryptedData,
 		}
@@ -140,22 +141,6 @@ func (repo *PostgresDB) UpdateToken(token models.Token, provider string) (*model
 	}
 
 	return &token, nil
-}
-
-func (repo *PostgresDB) CreateToken(token *models.Token) error {
-	encryptedAccessToken, err := util.Encrypt(token.AccessToken)
-	if err != nil {
-		return err
-	}
-	token.AccessToken = encryptedAccessToken
-
-	encryptedRefreshToken, err := util.Encrypt(token.RefreshToken)
-	if err != nil {
-		return err
-	}
-	token.RefreshToken = encryptedRefreshToken
-
-	return repo.db.Create(&token).Error
 }
 
 func (repo *PostgresDB) InvalidateToken(accessToken string) error {

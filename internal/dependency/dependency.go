@@ -16,7 +16,6 @@ type UserRepository interface {
 type TokenRepository interface {
 	CreateOrUpdateToken(newToken models.Token) (*models.Token, error)
 	UpdateToken(token models.Token, provider string) (*models.Token, error)
-	CreateToken(token *models.Token) error
 	InvalidateToken(accessToken string) error
 	UserToken(userId uint, provider string) *models.Token
 }

@@ -9,4 +9,5 @@ type ProviderConfig struct {
 	RevokeURL    string
 	TeamID       string //for apple
 	SecretPath   string //for apple
+	KeyID        string //for apple
 }

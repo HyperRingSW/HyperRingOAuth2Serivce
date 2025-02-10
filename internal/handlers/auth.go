@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/golang-jwt/jwt/v5"
 	"io"
 	"net/http"
 	"net/url"
@@ -214,6 +213,17 @@ func (h *Handler) RefreshTokenHandler(w http.ResponseWriter, r *http.Request) {
 		token.RefreshToken = decryptRefresh
 	}
 
+	if token.IDToken != "" {
+		decryptIDToken, err := util.Decrypt(token.IDToken)
+		if err != nil {
+			util.LogInfo("error decrypting ID token")
+			util.LogError(err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		token.IDToken = decryptIDToken
+	}
+
 	providerConfig, err := getProviderConfig(token.Provider, h.cfg.Authorization)
 	if err != nil {
 		util.LogError(err)
@@ -223,6 +233,33 @@ func (h *Handler) RefreshTokenHandler(w http.ResponseWriter, r *http.Request) {
 
 	data := url.Values{}
 	switch token.Provider {
+	case models.PROVIDER_APPLE:
+		_, err := providers.VerifyAppleIdentityToken(token.IDToken, providerConfig)
+		if err != nil {
+			util.LogInfo("error verifying apple")
+			util.LogError(err)
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
+		expiresAt := time.Now().Add(180 * 24 * time.Hour)
+
+		jwtToken, _, err := util.GenerateJWT(userID, provider, expiresAt.Unix())
+		if err != nil {
+			util.LogInfo("error generating jwt")
+			util.LogError(err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		response := models.AuthResponse{
+			JWTToken:  jwtToken,
+			ExpiresAt: expiresAt.Unix(),
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(response)
 	case models.PROVIDER_FB:
 		data.Set("client_id", providerConfig.ClientID)
 		data.Set("client_secret", providerConfig.ClientSecret)
@@ -233,30 +270,6 @@ func (h *Handler) RefreshTokenHandler(w http.ResponseWriter, r *http.Request) {
 		data.Set("client_secret", "")
 		data.Set("grant_type", "refresh_token")
 		data.Set("refresh_token", token.RefreshToken)
-	case models.PROVIDER_APPLE:
-		claims := jwt.MapClaims{
-			"iss": providerConfig.TeamID,
-			"iat": time.Now().Unix(),
-			"exp": time.Now().Add(365 * 24 * time.Hour).Unix(),
-			"aud": "https://appleid.apple.com",
-			"sub": providerConfig.ClientID,
-		}
-
-		tokenJWT := jwt.NewWithClaims(jwt.SigningMethodES256, claims)
-		cs, err := util.LoadECDSAPrivateKeyFromPEM(providerConfig.SecretPath)
-		if err != nil {
-			util.LogError(err)
-			w.WriteHeader(http.StatusInternalServerError)
-			return
-		}
-		clientSecret, err := tokenJWT.SignedString(cs) // providerConfig.PrivateKey get from .p8 file
-		if err != nil {
-			util.LogError(err)
-			w.WriteHeader(http.StatusInternalServerError)
-			return
-		}
-
-		data.Set("client_secret", clientSecret)
 	default:
 		util.LogError(errors.New("invalid provider"))
 		w.WriteHeader(http.StatusBadRequest)
@@ -452,6 +465,7 @@ func getProviderConfig(provider string, cfg config.Authorization) (providers.Pro
 			RevokeURL:    cfg.Apple.RevokeURL,
 			TeamID:       cfg.Apple.TeamID,
 			SecretPath:   cfg.Apple.SecretPath,
+			KeyID:        cfg.Apple.KeyID,
 		}, nil
 	default:
 		return providers.ProviderConfig{}, fmt.Errorf("unsupported provider: %s", provider)

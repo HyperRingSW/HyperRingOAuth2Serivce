@@ -272,6 +272,37 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Ring'
+    RingResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          example: "ring-001"
+        name:
+          type: string
+          example: "ring name"
+        userNamed:
+          type: string
+          example: "ring name"
+        description:
+          type: string
+          example: "description"
+        imageUrl:
+          type: string
+          format: uri
+          example: "https://example.com/ring.png"
+        siteUrl:
+          type: string
+          format: uri
+          example: "https://example.com"
+        services:
+          type: array
+          items:
+            type: string
+          example:
+            - "install"
+        deviceDescription:
+          $ref: '#/components/schemas/DeviceDescriptionRequest'
     Ring:
       type: object
       properties:
