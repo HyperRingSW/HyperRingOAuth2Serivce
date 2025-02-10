@@ -19,6 +19,23 @@ func (repo *PostgresDB) RingRepository() dependency.RingRepository {
 }
 
 func (repo *PostgresDB) SaveRing(ring *models.Ring) (*models.Ring, error) {
+
+	if ring.DeviceDescription.CIN != "" {
+		enc, err := util.Encrypt(ring.DeviceDescription.CIN)
+		if err != nil {
+			return nil, err
+		}
+		ring.DeviceDescription.CIN = enc
+	}
+
+	if ring.DeviceDescription.IIN != "" {
+		enc, err := util.Encrypt(ring.DeviceDescription.IIN)
+		if err != nil {
+			return nil, err
+		}
+		ring.DeviceDescription.IIN = enc
+	}
+
 	savedRing := models.Ring{}
 	result := repo.db.Where("id = ?", ring.Id).First(&savedRing)
 	if result.RowsAffected == 0 {
@@ -52,9 +69,22 @@ func (repo *ringRepository) GetRing(id string) (*models.Ring, error) {
 	if err := repo.db.
 		Preload("DeviceDescription").
 		Preload("DeviceDescription.Batch").
+		Preload("Services").
 		Where("id = ?", id).First(&ring).Error; err != nil {
 		return nil, errors.New("error get ring: " + err.Error())
 	}
+	dec, err := util.Decrypt(ring.DeviceDescription.CIN)
+	if err != nil {
+		return nil, err
+	}
+	ring.DeviceDescription.CIN = dec
+
+	dec, err = util.Decrypt(ring.DeviceDescription.IIN)
+	if err != nil {
+		return nil, err
+	}
+	ring.DeviceDescription.IIN = dec
+
 	return &ring, nil
 }
 
@@ -62,6 +92,7 @@ func (repo *ringRepository) DeleteRing(ringId string) error {
 	if err := repo.db.
 		Preload("DeviceDescription").
 		Preload("DeviceDescription.Batch").
+		Preload("Services").
 		Delete(&models.Ring{}, "id = ?", ringId).Error; err != nil {
 		return err
 	}

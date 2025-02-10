@@ -1,7 +1,7 @@
 openapi: 3.0.0
 info:
   title: OAuth2 Server API
-  version: "0.0.9"
+  version: "0.0.10"
   description: API for managing OAuth2 authentication and authorization.
 servers:
   - url: http://localhost:8090
@@ -262,9 +262,6 @@ components:
     UserProfileResponse:
       type: object
       properties:
-        userId:
-          type: integer
-          example: 3
         name:
           type: string
           example: "name"
@@ -299,10 +296,21 @@ components:
           format: uri
           example: "https://example.com"
         services:
-          type: string
-          example: "install"
+          type: array
+          items:
+            type: string
+          example:
+            - "install"
         deviceDescription:
           $ref: '#/components/schemas/DeviceDescriptionRequest'
+    RingService:
+      type: object
+      required:
+        - service
+      properties:
+        service:
+          type: string
+          example: "install"
     DeviceDescriptionRequest:
       type: object
       required:

@@ -1,5 +1,7 @@
 package models
 
+import "encoding/json"
+
 type RingServiceType string
 
 const (
@@ -13,13 +15,12 @@ const (
 )
 
 type Ring struct {
-	Id          string `json:"id" gorm:"column:id;primaryKey"`
-	Name        string `json:"name,omitempty"`
-	UserNamed   string `json:"userNamed,omitempty"`
-	Description string `json:"description,omitempty"`
-	ImageURL    string `json:"imageUrl,omitempty"`
-	SiteURL     string `json:"siteUrl,omitempty"`
-	// Указываем связь с новой таблицей ring_services
+	Id                string            `json:"id" gorm:"column:id;primaryKey"`
+	Name              string            `json:"name,omitempty"`
+	UserNamed         string            `json:"userNamed,omitempty"`
+	Description       string            `json:"description,omitempty"`
+	ImageURL          string            `json:"imageUrl,omitempty"`
+	SiteURL           string            `json:"siteUrl,omitempty"`
 	Services          []RingService     `json:"services,omitempty" gorm:"foreignKey:RingID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
 	DeviceDescription DeviceDescription `json:"deviceDescription,omitempty" gorm:"foreignKey:RingID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
 }
@@ -48,4 +49,40 @@ type RingBatch struct {
 	BatchId             int    `json:"batchId"`
 	IsUser              int64  `json:"isUser"`
 	IsUserName          string `json:"isUserName"`
+}
+
+func (r *Ring) UnmarshalJSON(data []byte) error {
+	type Alias Ring
+
+	aux := &struct {
+		Services []string `json:"services"`
+		*Alias
+	}{
+		Alias: (*Alias)(r),
+	}
+
+	if err := json.Unmarshal(data, aux); err != nil {
+		return err
+	}
+
+	for _, s := range aux.Services {
+		if _, ok := ServiceMapping[s]; !ok {
+			continue
+		}
+		r.Services = append(r.Services, RingService{
+			Service: RingServiceType(s),
+		})
+	}
+
+	return nil
+}
+
+var ServiceMapping = map[string]RingServiceType{
+	"install":    RingServiceTypeInstall,
+	"uninstall":  RingServiceTypeUninstall,
+	"delete":     RingServiceTypeDelete,
+	"activate":   RingServiceTypeActivate,
+	"suspend":    RingServiceTypeSuspend,
+	"unsuspend":  RingServiceTypeUnsuspend,
+	"retokenize": RingServiceTypeRetokenize,
 }
