@@ -79,8 +79,9 @@ func (h *Handler) GetUserProfile(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(models.UserProfileGETResponse{
-		Name:  user.Name,
-		Email: user.Email,
-		Rings: rings,
+		UserId: 0,
+		Name:   user.Name,
+		Email:  user.Email,
+		Rings:  rings,
 	})
 }

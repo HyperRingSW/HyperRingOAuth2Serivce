@@ -1,9 +1,10 @@
 package models
 
 type UserProfileGETResponse struct {
-	Name  string         `json:"name"`
-	Email string         `json:"email"`
-	Rings []RingResponse `json:"rings"`
+	UserId int            `json:"userId"`
+	Name   string         `json:"name"`
+	Email  string         `json:"email"`
+	Rings  []RingResponse `json:"rings"`
 }
 
 type RingResponse struct {
