@@ -136,6 +136,10 @@ func (h *Handler) AuthUserHandler(w http.ResponseWriter, r *http.Request, provid
 		expiresAt = time.Now().Add(time.Hour)
 	}
 
+	if h.cfg.App.CustomExpiresTime {
+		expiresAt = time.Now().Add(time.Second * time.Duration(h.cfg.App.ExpiresTime))
+	}
+
 	// Create token
 	newToken := models.Token{
 		UserID:       user.ID,
@@ -243,6 +247,9 @@ func (h *Handler) RefreshTokenHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		expiresAt := time.Now().Add(180 * 24 * time.Hour)
+		if h.cfg.App.CustomExpiresTime {
+			expiresAt = time.Now().Add(time.Second * time.Duration(h.cfg.App.ExpiresTime))
+		}
 
 		jwtToken, _, err := util.GenerateJWT(userID, provider, expiresAt.Unix())
 		if err != nil {
@@ -321,6 +328,9 @@ func (h *Handler) RefreshTokenHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	expiresAt := time.Now().Add(time.Duration(tokenResponse.ExpiresIn) * time.Second)
+	if h.cfg.App.CustomExpiresTime {
+		expiresAt = time.Now().Add(time.Second * time.Duration(h.cfg.App.ExpiresTime))
+	}
 
 	// Update token
 	_, err = h.repo.TokenRepository().UpdateToken(
