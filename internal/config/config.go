@@ -46,7 +46,7 @@ type AppleAuthConfig struct {
 	UserInfoURL string `env:"OAUTH_USER_INFO_URL" env-default:""`
 	RevokeURL   string `env:"OAUTH_REVOKE_URL" env-default:""`
 	TeamID      string `env:"OAUTH_TEAM_ID" env-default:""`
-	PrivateKey  string `env:"OAUTH_PRIVATE_KEY" env-default:""`
+	SecretPath  string `env:"OAUTH_CLIENT_SECRET_PATH" env-default:""`
 }
 
 type FacebookAuthConfig struct {

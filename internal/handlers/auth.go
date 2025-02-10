@@ -194,13 +194,15 @@ func (h *Handler) RefreshTokenHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	decryptAccess, err := util.Decrypt(token.AccessToken)
-	if err != nil {
-		util.LogError(err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
+	if token.AccessToken != "" {
+		decryptAccess, err := util.Decrypt(token.AccessToken)
+		if err != nil {
+			util.LogError(err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		token.AccessToken = decryptAccess
 	}
-	token.AccessToken = decryptAccess
 
 	if token.RefreshToken != "" {
 		decryptRefresh, err := util.Decrypt(token.RefreshToken)
@@ -241,7 +243,13 @@ func (h *Handler) RefreshTokenHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		tokenJWT := jwt.NewWithClaims(jwt.SigningMethodES256, claims)
-		clientSecret, err := tokenJWT.SignedString(providerConfig.PrivateKey) // providerConfig.PrivateKey get from .p8 file
+		cs, err := util.LoadECDSAPrivateKeyFromPEM(providerConfig.SecretPath)
+		if err != nil {
+			util.LogError(err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		clientSecret, err := tokenJWT.SignedString(cs) // providerConfig.PrivateKey get from .p8 file
 		if err != nil {
 			util.LogError(err)
 			w.WriteHeader(http.StatusInternalServerError)
@@ -443,7 +451,7 @@ func getProviderConfig(provider string, cfg config.Authorization) (providers.Pro
 			UserInfoURL:  cfg.Apple.UserInfoURL,
 			RevokeURL:    cfg.Apple.RevokeURL,
 			TeamID:       cfg.Apple.TeamID,
-			PrivateKey:   cfg.Apple.PrivateKey,
+			SecretPath:   cfg.Apple.SecretPath,
 		}, nil
 	default:
 		return providers.ProviderConfig{}, fmt.Errorf("unsupported provider: %s", provider)
