@@ -85,6 +85,12 @@ func (repo *ringRepository) GetRing(id string) (*models.Ring, error) {
 	}
 	ring.DeviceDescription.IIN = dec
 
+	dec, err = util.Decrypt(ring.UserNamed)
+	if err != nil {
+		return nil, err
+	}
+	ring.UserNamed = dec
+
 	return &ring, nil
 }
 
