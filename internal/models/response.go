@@ -5,6 +5,7 @@ type UserProfileGETResponse struct {
 	Name   string         `json:"name"`
 	Email  string         `json:"email"`
 	Rings  []RingResponse `json:"rings"`
+	Demo   bool           `json:"demo"`
 }
 
 type RingResponse struct {

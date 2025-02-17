@@ -11,6 +11,8 @@ type AppConfig struct {
 	Addr              string `env:"APP_ADDR" env-default:"localhost:8090"`
 	ExpiresTime       int    `env:"EXPIRES_TIME" env-default:"60"`
 	CustomExpiresTime bool   `env:"CUSTOM_EXPIRES_TIME" env-default:"false"`
+	DemoEmail         string `env:"DEMO_EMAIL" env-default:"admin@example.com"`
+	DemoMode          bool   `env:"DEMO_MODE" env-default:"false"`
 }
 
 type OAuht2Config struct {

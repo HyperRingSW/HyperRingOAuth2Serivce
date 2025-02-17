@@ -76,6 +76,11 @@ func (h *Handler) GetUserProfile(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 
+	demo := false
+	if h.cfg.App.DemoMode && h.cfg.App.DemoEmail == user.Email {
+		demo = true
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(models.UserProfileGETResponse{
@@ -83,5 +88,6 @@ func (h *Handler) GetUserProfile(w http.ResponseWriter, r *http.Request) {
 		Name:   user.Name,
 		Email:  user.Email,
 		Rings:  rings,
+		Demo:   demo,
 	})
 }
