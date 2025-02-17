@@ -1,0 +1,56 @@
+name: Deploy to Test
+
+on:
+  push:
+    branches-ignore: 
+      - main
+      - prod
+
+jobs:
+  deploy-test:
+    runs-on: ubuntu-latest
+    env:
+      ENVIRONMENT: test
+      SSH_HOST: ${{ secrets.AWS_EC2_TEST_IP }}
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.21'
+
+    - name: Build binary
+      run: |
+        go build -o app-bin-$(git rev-parse --short HEAD) ./src/
+        mkdir -p deployment
+        mv app-bin-* deployment/app-bin
+
+    - name: Create .env
+      run: |
+        echo "${{ secrets.ENV_TEST }}" > deployment/.env
+        echo "DEPLOY_BRANCH=$(git branch --show-current)" >> deployment/.env
+
+    - name: Secure copy files
+      uses: appleboy/scp-action@v0.1.6
+      with:
+        host: ${{ env.SSH_HOST }}
+        username: ec2-user
+        key: ${{ secrets.SSH_PRIVATE_KEY }}
+        source: "deployment/*"
+        target: "/home/ec2-user/test-env/${{ github.ref_name }}/"
+
+    - name: Restart PM2 service
+      uses: appleboy/ssh-action@v1.0.0
+      with:
+        host: ${{ env.SSH_HOST }}
+        username: ec2-user
+        key: ${{ secrets.SSH_PRIVATE_KEY }}
+        script: |
+          cd /home/ec2-user/test-env/${{ github.ref_name }}/
+          chmod 500 app-bin .env
+          pm2 delete ${{ github.ref_name }} || true
+          pm2 start ./app-bin --name "${{ github.ref_name }}"
+          pm2 save
