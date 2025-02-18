@@ -39,7 +39,7 @@ func (h *Handler) AuthUserHandler(w http.ResponseWriter, r *http.Request, provid
 	providerConfig, err := getProviderConfig(provider, h.cfg.Authorization)
 	if err != nil {
 		util.LogError(err)
-		w.WriteHeader(http.StatusBadRequest)
+		w.WriteHeader(http.StatusNotFound)
 		return
 	}
 
@@ -400,21 +400,29 @@ func (h *Handler) LogoutHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	decryptAccess, err := util.Decrypt(token.AccessToken)
-	if err != nil {
-		util.LogError(err)
-		w.WriteHeader(http.StatusUnauthorized)
-		return
+	decryptAccess := ""
+	if token.AccessToken != "" {
+		decryptAccess, err = util.Decrypt(token.AccessToken)
+		if err != nil {
+			util.LogError(err)
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 	}
 
 	// Set data for provider
 	data := url.Values{}
 	switch provider {
-	case models.PROVIDER_FB:
-		data.Set("next", "http://localhost:3000/")
-		data.Set("access_token", decryptAccess)
-	case models.PROVIDER_GOOGLE,
-		models.PROVIDER_APPLE:
+	case models.PROVIDER_APPLE:
+		err = h.repo.TokenRepository().InvalidateIdToken(token.IDToken)
+		if err != nil {
+			util.LogError(err)
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		return
+	case models.PROVIDER_GOOGLE:
 		data.Set("token", decryptAccess)
 	default:
 		util.LogError(errors.New("Unsupported provider"))
@@ -436,14 +444,13 @@ func (h *Handler) LogoutHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.repo.TokenRepository().InvalidateToken(token.AccessToken); err != nil {
+	if err := h.repo.TokenRepository().InvalidateAccessToken(token.AccessToken); err != nil {
 		util.LogError(err)
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
 	// Send response
-	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 }
 

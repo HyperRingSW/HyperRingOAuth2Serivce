@@ -1,7 +1,7 @@
 openapi: 3.0.0
 info:
   title: OAuth2 Server API
-  version: "0.0.14"
+  version: "0.0.15"
   description: API for managing OAuth2 authentication and authorization.
 servers:
   - url: http://localhost:8090
@@ -28,10 +28,8 @@ paths:
                 $ref: '#/components/schemas/AuthResponse'
         '400':
           description: Bad request
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPError'
+        '404':
+          description: Not found
         '500':
           description: Internal server error
   /auth/apple:
@@ -55,10 +53,8 @@ paths:
                 $ref: '#/components/schemas/AuthResponse'
         '400':
           description: Bad request
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPError'
+        '404':
+          description: Not found
         '500':
           description: Internal server error
 
@@ -76,22 +72,10 @@ paths:
                 $ref: '#/components/schemas/AuthResponse'
         '400':
           description: Invalid request data
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPError'
         '401':
           description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPError'
         '500':
           description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPError'
 
   /auth/logout:
     post:
@@ -101,22 +85,10 @@ paths:
       responses:
         '200':
           description: Successful logout
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/LogoutSuccess'
         '400':
           description: Invalid request data
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPError'
         '500':
           description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPError'
 
   /user/profile:
     get:
@@ -132,16 +104,8 @@ paths:
                 $ref: '#/components/schemas/UserProfileResponse'
         '401':
           description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPError'
         '500':
           description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPError'
 
   /user/ring:
     post:
@@ -179,16 +143,8 @@ paths:
           description: Ring name updated successfully
         '400':
           description: Invalid request data
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPError'
         '401':
           description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPError'
         '404':
           description: User ring not found
           content:
@@ -237,10 +193,6 @@ components:
           type: string
           description: ID token (Google and Apple)
           example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-        accessToken:
-          type: string
-          description: Access token (Facebook and Google)
-          example: "EAAJZC..."
     LogoutSuccess:
       type: object
       properties:

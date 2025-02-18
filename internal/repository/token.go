@@ -143,8 +143,12 @@ func (repo *PostgresDB) UpdateToken(token models.Token, provider string) (*model
 	return &token, nil
 }
 
-func (repo *PostgresDB) InvalidateToken(accessToken string) error {
+func (repo *PostgresDB) InvalidateAccessToken(accessToken string) error {
 	return repo.db.Where("access_token = ?", accessToken).Delete(&models.Token{}).Error
+}
+
+func (repo *PostgresDB) InvalidateIdToken(idToken string) error {
+	return repo.db.Where("id_token = ?", idToken).Delete(&models.Token{}).Error
 }
 
 func (repo *PostgresDB) UserToken(userId uint, provider string) *models.Token {
