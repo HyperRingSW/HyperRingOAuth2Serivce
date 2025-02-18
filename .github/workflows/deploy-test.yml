@@ -1,56 +1,83 @@
-name: Deploy to Test
+name: Deploy and build
 
 on:
-  push:
-    branches-ignore: 
-      - main
-      - prod
+  workflow_dispatch:
+    inputs:
+      environment:
+        type: choice
+        description: "Select environment to deploy"
+        required: true
+        options:
+          - test
+          - production
+        default: test
 
 jobs:
-  deploy-test:
+  deploy:
+    # Tie the job's environment to the user’s input
+    # If "production" is chosen, it references the production environment (which can require manual approval).
+    environment: ${{ github.event.inputs.environment }}
     runs-on: ubuntu-latest
-    env:
-      ENVIRONMENT: test
-      SSH_HOST: ${{ secrets.AWS_EC2_TEST_IP }}
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      # 1) Check out your code
+      - name: Check out repository
+        uses: actions/checkout@v3
 
-    - name: Setup Go
-      uses: actions/setup-go@v4
-      with:
-        go-version: '1.21'
+      # 2) Determine environment & set variables
+      - name: Configure environment variables
+        run: |
+          echo "Configuring environment for ${{ github.event.inputs.environment }}..."
 
-    - name: Build binary
-      run: |
-        go build -o app-bin-$(git rev-parse --short HEAD) ./src/
-        mkdir -p deployment
-        mv app-bin-* deployment/app-bin
+          if [ "${{ github.event.inputs.environment }}" = "test" ]; then
+            echo "EC2_HOST=${{ secrets.HOST_TEST }}" >> $GITHUB_ENV
+            echo "SSH_KEY='${{ secrets.SSH_PRIVATE_KEY_TEST }}'" >> $GITHUB_ENV
+            echo "ENV_FILE_CONTENT='${{ secrets.ENV_TEST }}'" >> $GITHUB_ENV
+            echo "ENVIRONMENT_SELECTED=test" >> $GITHUB_ENV
+          else
+            echo "EC2_HOST=${{ secrets.HOST_PROD }}" >> $GITHUB_ENV
+            echo "SSH_KEY='${{ secrets.SSH_PRIVATE_KEY_PROD }}'" >> $GITHUB_ENV
+            echo "ENV_FILE_CONTENT='${{ secrets.ENV_PROD }}'" >> $GITHUB_ENV
+            echo "ENVIRONMENT_SELECTED=production" >> $GITHUB_ENV
+          fi
 
-    - name: Create .env
-      run: |
-        echo "${{ secrets.ENV_TEST }}" > deployment/.env
-        echo "DEPLOY_BRANCH=$(git branch --show-current)" >> deployment/.env
+      # 3) Set up SSH
+      - name: Set up SSH
+        run: |
+          echo "Setting up SSH..."
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          eval "$(ssh-agent -s)"
+          # Add the correct private key from $SSH_KEY
+          echo "$SSH_KEY" | tr -d '\r' | ssh-add -
 
-    - name: Secure copy files
-      uses: appleboy/scp-action@v0.1.6
-      with:
-        host: ${{ env.SSH_HOST }}
-        username: ec2-user
-        key: ${{ secrets.SSH_PRIVATE_KEY }}
-        source: "deployment/*"
-        target: "/home/ec2-user/test-env/${{ github.ref_name }}/"
+          echo "Adding host key to known_hosts for $EC2_HOST"
+          ssh-keyscan -H "$EC2_HOST" >> ~/.ssh/known_hosts 2>/dev/null || true
 
-    - name: Restart PM2 service
-      uses: appleboy/ssh-action@v1.0.0
-      with:
-        host: ${{ env.SSH_HOST }}
-        username: ec2-user
-        key: ${{ secrets.SSH_PRIVATE_KEY }}
-        script: |
-          cd /home/ec2-user/test-env/${{ github.ref_name }}/
-          chmod 500 app-bin .env
-          pm2 delete ${{ github.ref_name }} || true
-          pm2 start ./app-bin --name "${{ github.ref_name }}"
-          pm2 save
+      # 4) Create local .env
+      - name: Create .env file
+        run: |
+          echo "$ENV_FILE_CONTENT" > .env
+          echo "Created .env for $ENVIRONMENT_SELECTED environment."
+
+      # 5) Upload code to EC2
+      - name: Upload code to EC2
+        run: |
+          sudo apt-get update && sudo apt-get install -y rsync
+          echo "Uploading to $EC2_HOST..."
+          rsync -avz \
+            -e "ssh -o StrictHostKeyChecking=no" \
+            --exclude ".git/" \
+            . ubuntu@"$EC2_HOST":/home/ubuntu/hyper-auth-app
+
+      # 6) SSH into EC2, build, and restart PM2
+      - name: Build & Restart PM2
+        run: |
+          echo "Building on $ENVIRONMENT_SELECTED environment..."
+          ssh -o StrictHostKeyChecking=no ubuntu@"$EC2_HOST" << 'EOF'
+            cd /home/ubuntu/hyper-auth-app
+            # If needed, install Node dependencies, e.g.:
+            # npm ci
+            make build
+            pm2 restart hyper-auth || pm2 start dist/index.js --name hyper-auth
+          EOF
