@@ -21,7 +21,7 @@ jobs:
     steps:
       # 1) Check out code
       - name: Check out repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       # 2) Install Go and build the application using `make build`
       - name: Install Go and build
@@ -38,7 +38,7 @@ jobs:
 
       # 3) Upload build artifact
       - name: Upload build artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: server
           path: bin/server
@@ -51,7 +51,7 @@ jobs:
     steps:
       # 1) Download the build artifact
       - name: Download build artifact
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: server
           path: bin/
