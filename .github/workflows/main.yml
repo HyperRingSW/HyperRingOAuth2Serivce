@@ -33,6 +33,9 @@ jobs:
           # Build the Go application using `make build`
           make build
           
+          # Make the binary executable
+          chmod +x bin/server
+          
           # Save the artifact name for the deploy job
           echo "artifact_name=bin/server" >> $GITHUB_OUTPUT
 
@@ -68,7 +71,7 @@ jobs:
             echo "${{ secrets.ENV_TEST }}" >> $GITHUB_ENV
             echo "EOF" >> $GITHUB_ENV
             echo "ENVIRONMENT_SELECTED=test" >> $GITHUB_ENV
-            echo "DESTINATION_PATH=/home/ubuntu/hyper-auth-app-test" >> $GITHUB_ENV
+            echo "DESTINATION_PATH=/home/ubuntu/hyper-auth-app" >> $GITHUB_ENV
           else
             echo "EC2_HOST=${{ secrets.HOST_PROD }}" >> $GITHUB_ENV
             echo "SSH_KEY<<EOF" >> $GITHUB_ENV
@@ -78,7 +81,7 @@ jobs:
             echo "${{ secrets.ENV_PROD }}" >> $GITHUB_ENV
             echo "EOF" >> $GITHUB_ENV
             echo "ENVIRONMENT_SELECTED=production" >> $GITHUB_ENV
-            echo "DESTINATION_PATH=/home/ubuntu/hyper-auth-app-prod" >> $GITHUB_ENV
+            echo "DESTINATION_PATH=/home/ubuntu/hyper-auth-app" >> $GITHUB_ENV
           fi
 
       # 3) Set up SSH
@@ -113,10 +116,11 @@ jobs:
             bin/server .env \
             ubuntu@"$EC2_HOST":"$DESTINATION_PATH"
 
-      # 7) SSH into the server and restart PM2
-      - name: Restart PM2
+      # 7) SSH into the server and start the service with PM2
+      - name: Start service with PM2
         run: |
           ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ubuntu@"$EC2_HOST" << 'EOF'
             cd "$DESTINATION_PATH"
+            chmod +x ./bin/server
             pm2 restart hyper-auth || pm2 start ./bin/server --name hyper-auth
           EOF
