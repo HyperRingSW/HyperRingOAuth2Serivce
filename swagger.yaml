@@ -1,7 +1,7 @@
 openapi: 3.0.0
 info:
   title: OAuth2 Server API
-  version: "0.0.11"
+  version: "0.0.14"
   description: API for managing OAuth2 authentication and authorization.
 servers:
   - url: http://localhost:8090
@@ -272,6 +272,9 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Ring'
+        demo:
+          type: boolean
+          example: false
     RingResponse:
       type: object
       properties:
