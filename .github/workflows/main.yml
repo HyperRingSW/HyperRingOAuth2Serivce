@@ -116,11 +116,27 @@ jobs:
             bin/server .env \
             ubuntu@"$EC2_HOST":"$DESTINATION_PATH"
 
-      # 7) SSH into the server and start the service with PM2
+      # 7) Verify binary permissions
+      - name: Verify binary permissions
+        run: |
+          ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ubuntu@"$EC2_HOST" << 'EOF'
+            cd "$DESTINATION_PATH"
+            ls -l ./server
+          EOF
+
+      # 8) Test binary execution
+      - name: Test binary execution
+        run: |
+          ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ubuntu@"$EC2_HOST" << 'EOF'
+            cd "$DESTINATION_PATH"
+            ./server --version || echo "Binary execution failed"
+          EOF
+
+      # 9) Start service with PM2
       - name: Start service with PM2
         run: |
           ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ubuntu@"$EC2_HOST" << 'EOF'
             cd "$DESTINATION_PATH"
-            chmod +x ./bin/server
-            pm2 restart hyper-auth || pm2 start ./bin/server --name hyper-auth
+            chmod +x ./server
+            pm2 restart hyper-auth || pm2 start ./server --name hyper-auth
           EOF
