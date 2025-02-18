@@ -1,11 +1,11 @@
-name: Deploy and build
+name: Build and Deploy Go App
 
 on:
   workflow_dispatch:
     inputs:
       environment:
         type: choice
-        description: "Select environment"
+        description: "Select environment to deploy to"
         required: true
         options:
           - test
@@ -13,16 +13,50 @@ on:
         default: test
 
 jobs:
-  build_and_deploy:
-    environment: ${{ github.event.inputs.environment }}
+  build:
     runs-on: ubuntu-latest
-    
+    outputs:
+      artifact_name: ${{ steps.build.outputs.artifact_name }}
+
     steps:
       # 1) Check out code
       - name: Check out repository
         uses: actions/checkout@v3
-      
-      # 2) Determine environment variables
+
+      # 2) Install Go and build the application using `make build`
+      - name: Install Go and build
+        id: build
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y golang make
+          
+          # Build the Go application using `make build`
+          make build
+          
+          # Save the artifact name for the deploy job
+          echo "artifact_name=bin/server" >> $GITHUB_OUTPUT
+
+      # 3) Upload build artifact
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: server
+          path: bin/server
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment }}
+
+    steps:
+      # 1) Download the build artifact
+      - name: Download build artifact
+        uses: actions/download-artifact@v3
+        with:
+          name: server
+          path: bin/
+
+      # 2) Configure environment variables
       - name: Configure environment variables
         run: |
           if [ "${{ github.event.inputs.environment }}" = "test" ]; then
@@ -30,30 +64,16 @@ jobs:
             echo "SSH_KEY='${{ secrets.SSH_PRIVATE_KEY_TEST }}'" >> $GITHUB_ENV
             echo "ENV_FILE_CONTENT='${{ secrets.ENV_TEST }}'" >> $GITHUB_ENV
             echo "ENVIRONMENT_SELECTED=test" >> $GITHUB_ENV
+            echo "DESTINATION_PATH=/home/ubuntu/hyper-auth-app-test" >> $GITHUB_ENV
           else
             echo "EC2_HOST=${{ secrets.HOST_PROD }}" >> $GITHUB_ENV
             echo "SSH_KEY='${{ secrets.SSH_PRIVATE_KEY_PROD }}'" >> $GITHUB_ENV
             echo "ENV_FILE_CONTENT='${{ secrets.ENV_PROD }}'" >> $GITHUB_ENV
             echo "ENVIRONMENT_SELECTED=production" >> $GITHUB_ENV
+            echo "DESTINATION_PATH=/home/ubuntu/hyper-auth-app-prod" >> $GITHUB_ENV
           fi
 
-      # 3) Build Locally in GitHub Actions
-      - name: Install dependencies and build
-        run: |
-          sudo apt-get update
-          # If you need build tools
-          sudo apt-get install -y build-essential make
-          
-          # Example if you're using Node.js:
-          # npm ci
-          # npm run build
-          #
-          # Or if your project uses a Makefile:
-          make build
-          
-          # Now your compiled artifacts (e.g., in dist/) are ready in the runner's filesystem
-
-      # 4) Set up SSH
+      # 3) Set up SSH
       - name: Set up SSH
         run: |
           mkdir -p ~/.ssh
@@ -62,27 +82,26 @@ jobs:
           echo "$SSH_KEY" | tr -d '\r' | ssh-add -
           ssh-keyscan -H "$EC2_HOST" >> ~/.ssh/known_hosts 2>/dev/null || true
 
-      # 5) Create local .env 
+      # 4) Create local .env
       - name: Create .env file
         run: |
           echo "$ENV_FILE_CONTENT" > .env
           echo "Created .env for $ENVIRONMENT_SELECTED environment."
 
-      # 6) Upload only artifacts (and .env) to the server
+      # 5) Upload build artifacts and .env to the server
       - name: Upload build artifacts
         run: |
           sudo apt-get install -y rsync
           
-          # Example: If your build output is in dist/
-          # We also send the .env file. Adjust as needed.
+          # Upload the Go binary and .env file to the appropriate EC2 host
           rsync -avz -e "ssh -o StrictHostKeyChecking=no" \
-            dist .env \
-            ubuntu@"$EC2_HOST":/home/ubuntu/hyper-auth-app
+            bin/server .env \
+            ubuntu@"$EC2_HOST":"$DESTINATION_PATH"
 
-      # 7) SSH into the server and restart PM2 (no building)
+      # 6) SSH into the server and restart PM2
       - name: Restart PM2
         run: |
           ssh -o StrictHostKeyChecking=no ubuntu@"$EC2_HOST" << 'EOF'
-            cd /home/ubuntu/hyper-auth-app
-            pm2 restart hyper-auth || pm2 start dist/index.js --name hyper-auth
+            cd "$DESTINATION_PATH"
+            pm2 restart hyper-auth || pm2 start ./bin/server --name hyper-auth
           EOF
