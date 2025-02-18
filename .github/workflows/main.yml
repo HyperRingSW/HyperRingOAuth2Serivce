@@ -61,14 +61,22 @@ jobs:
         run: |
           if [ "${{ github.event.inputs.environment }}" = "test" ]; then
             echo "EC2_HOST=${{ secrets.HOST_TEST }}" >> $GITHUB_ENV
-            echo "SSH_KEY='${{ secrets.SSH_PRIVATE_KEY_TEST }}'" >> $GITHUB_ENV
-            echo "ENV_FILE_CONTENT='${{ secrets.ENV_TEST }}'" >> $GITHUB_ENV
+            echo "SSH_KEY<<EOF" >> $GITHUB_ENV
+            echo "${{ secrets.SSH_PRIVATE_KEY_TEST }}" >> $GITHUB_ENV
+            echo "EOF" >> $GITHUB_ENV
+            echo "ENV_FILE_CONTENT<<EOF" >> $GITHUB_ENV
+            echo "${{ secrets.ENV_TEST }}" >> $GITHUB_ENV
+            echo "EOF" >> $GITHUB_ENV
             echo "ENVIRONMENT_SELECTED=test" >> $GITHUB_ENV
             echo "DESTINATION_PATH=/home/ubuntu/hyper-auth-app-test" >> $GITHUB_ENV
           else
             echo "EC2_HOST=${{ secrets.HOST_PROD }}" >> $GITHUB_ENV
-            echo "SSH_KEY='${{ secrets.SSH_PRIVATE_KEY_PROD }}'" >> $GITHUB_ENV
-            echo "ENV_FILE_CONTENT='${{ secrets.ENV_PROD }}'" >> $GITHUB_ENV
+            echo "SSH_KEY<<EOF" >> $GITHUB_ENV
+            echo "${{ secrets.SSH_PRIVATE_KEY_PROD }}" >> $GITHUB_ENV
+            echo "EOF" >> $GITHUB_ENV
+            echo "ENV_FILE_CONTENT<<EOF" >> $GITHUB_ENV
+            echo "${{ secrets.ENV_PROD }}" >> $GITHUB_ENV
+            echo "EOF" >> $GITHUB_ENV
             echo "ENVIRONMENT_SELECTED=production" >> $GITHUB_ENV
             echo "DESTINATION_PATH=/home/ubuntu/hyper-auth-app-prod" >> $GITHUB_ENV
           fi
