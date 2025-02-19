@@ -114,12 +114,14 @@ jobs:
           # Upload the Go binary and .env file to the appropriate EC2 host
           rsync -avz -e "ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa" \
             bin/server .env \
+            echo "$DESTINATION_PATH"
             ubuntu@"$EC2_HOST":"$DESTINATION_PATH/"
 
       # 7) Verify binary exists
       - name: Verify binary exists
         run: |
           ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ubuntu@"$EC2_HOST" << 'EOF'
+            echo "$DESTINATION_PATH"
             cd "$DESTINATION_PATH"
             if [ -f ./server ]; then
               echo "Binary exists at $(pwd)/server"
