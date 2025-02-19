@@ -110,11 +110,10 @@ jobs:
       - name: Upload build artifacts
         run: |
           sudo apt-get install -y rsync
-          
+          echo "$DESTINATION_PATH"
           # Upload the Go binary and .env file to the appropriate EC2 host
           rsync -avz -e "ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa" \
             bin/server .env \
-            echo "$DESTINATION_PATH"
             ubuntu@"$EC2_HOST":"$DESTINATION_PATH/"
 
       # 7) Verify binary exists
