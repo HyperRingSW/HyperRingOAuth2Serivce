@@ -145,7 +145,7 @@ func VerifyGoogleIDToken(idToken string, providerConfig ProviderConfig) (map[str
 		}
 	}
 	if jwk == nil {
-		return nil, errors.New("error fetching jwk")
+		return nil, errors.New("error fetching google jwk")
 	}
 
 	pubKey, err := ParseRSAPublicKeyFromJWK(jwk)
@@ -218,17 +218,18 @@ func VerifyAppleIdentityToken(idToken string, providerConfig ProviderConfig) (ma
 		return nil, err
 	}
 
-	// Parse the token header to extract the 'kid' parameter.
-	token, err := jwt.Parse(idToken, nil)
+	parser := new(jwt.Parser)
+	token, _, err := parser.ParseUnverified(idToken, jwt.MapClaims{})
 	if err != nil {
-		return nil, fmt.Errorf("error decode token: %v", err)
+		return nil, fmt.Errorf("failed parsing unverified token: %v", err)
 	}
+
 	kid, ok := token.Header["kid"].(string)
 	if !ok {
 		return nil, errors.New("kid header not found")
 	}
 
-	// Locate the corresponding key using the 'kid'.
+	// find kid
 	var jwk map[string]interface{}
 	for _, key := range certs {
 		if key["kid"] == kid {

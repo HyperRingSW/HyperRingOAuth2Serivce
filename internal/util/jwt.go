@@ -8,11 +8,12 @@ import (
 var jwtSecret = []byte("86194778010")
 
 // GenerateJWT
-func GenerateJWT(userID uint, provider string, expirationTime int64) (string, int64, error) {
+func GenerateJWT(userID uint, provider string, expirationTime int64, deviceUUID string) (string, int64, error) {
 	claims := jwt.MapClaims{
-		"user_id":  userID,
-		"provider": provider,
-		"exp":      expirationTime,
+		"user_id":     userID,
+		"provider":    provider,
+		"exp":         expirationTime,
+		"device_uuid": deviceUUID,
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)

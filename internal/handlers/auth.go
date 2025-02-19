@@ -39,7 +39,7 @@ func (h *Handler) AuthUserHandler(w http.ResponseWriter, r *http.Request, provid
 	providerConfig, err := getProviderConfig(provider, h.cfg.Authorization)
 	if err != nil {
 		util.LogError(err)
-		w.WriteHeader(http.StatusBadRequest)
+		w.WriteHeader(http.StatusNotFound)
 		return
 	}
 
@@ -67,18 +67,6 @@ func (h *Handler) AuthUserHandler(w http.ResponseWriter, r *http.Request, provid
 			return
 		}
 
-	case models.PROVIDER_FB:
-		if body.AccessToken == "" {
-			util.LogError(errors.New("accessToken is required"))
-			w.WriteHeader(http.StatusBadRequest)
-			return
-		}
-		claims, err = providers.GetFacebookUserInfo(body.AccessToken, providerConfig.UserInfoURL)
-		if err != nil {
-			util.LogError(err)
-			w.WriteHeader(http.StatusBadRequest)
-			return
-		}
 	case models.PROVIDER_APPLE:
 		if body.IdToken == "" {
 			util.LogError(errors.New("idToken is required"))
@@ -136,10 +124,19 @@ func (h *Handler) AuthUserHandler(w http.ResponseWriter, r *http.Request, provid
 		expiresAt = time.Now().Add(time.Hour)
 	}
 
+	if h.cfg.App.CustomExpiresTime {
+		expiresAt = time.Now().Add(time.Second * time.Duration(h.cfg.App.ExpiresTime))
+	}
+
+	if body.DeviceUUID == "" {
+		body.DeviceUUID = models.DefaultUUID
+	}
+
 	// Create token
 	newToken := models.Token{
 		UserID:       user.ID,
 		Provider:     provider,
+		DeviceUUID:   body.DeviceUUID,
 		AccessToken:  body.AccessToken,
 		RefreshToken: body.RefreshToken,
 		IDToken:      body.IdToken,
@@ -156,7 +153,7 @@ func (h *Handler) AuthUserHandler(w http.ResponseWriter, r *http.Request, provid
 	}
 
 	// Generate JWT token
-	jwtToken, _, err := util.GenerateJWT(user.ID, provider, expiresAt.Unix())
+	jwtToken, _, err := util.GenerateJWT(user.ID, provider, expiresAt.Unix(), body.DeviceUUID)
 	if err != nil {
 		util.LogError(err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -186,6 +183,13 @@ func (h *Handler) RefreshTokenHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	deviceUUID, ok := r.Context().Value("deviceUUID").(string)
+	if !ok {
+		util.LogError(errors.New("invalid provider in context"))
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
 	token := h.repo.TokenRepository().UserToken(userID, provider)
 	if token == nil {
 		util.LogError(errors.New("token is not found"))
@@ -193,13 +197,15 @@ func (h *Handler) RefreshTokenHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	decryptAccess, err := util.Decrypt(token.AccessToken)
-	if err != nil {
-		util.LogError(err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
+	if token.AccessToken != "" {
+		decryptAccess, err := util.Decrypt(token.AccessToken)
+		if err != nil {
+			util.LogError(err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		token.AccessToken = decryptAccess
 	}
-	token.AccessToken = decryptAccess
 
 	if token.RefreshToken != "" {
 		decryptRefresh, err := util.Decrypt(token.RefreshToken)
@@ -211,6 +217,17 @@ func (h *Handler) RefreshTokenHandler(w http.ResponseWriter, r *http.Request) {
 		token.RefreshToken = decryptRefresh
 	}
 
+	if token.IDToken != "" {
+		decryptIDToken, err := util.Decrypt(token.IDToken)
+		if err != nil {
+			util.LogInfo("error decrypting ID token")
+			util.LogError(err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		token.IDToken = decryptIDToken
+	}
+
 	providerConfig, err := getProviderConfig(token.Provider, h.cfg.Authorization)
 	if err != nil {
 		util.LogError(err)
@@ -220,12 +237,42 @@ func (h *Handler) RefreshTokenHandler(w http.ResponseWriter, r *http.Request) {
 
 	data := url.Values{}
 	switch token.Provider {
+	case models.PROVIDER_APPLE:
+		_, err := providers.VerifyAppleIdentityToken(token.IDToken, providerConfig)
+		if err != nil {
+			util.LogInfo("error verifying apple")
+			util.LogError(err)
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+
+		expiresAt := time.Now().Add(180 * 24 * time.Hour)
+		if h.cfg.App.CustomExpiresTime {
+			expiresAt = time.Now().Add(time.Second * time.Duration(h.cfg.App.ExpiresTime))
+		}
+
+		jwtToken, _, err := util.GenerateJWT(userID, provider, expiresAt.Unix(), deviceUUID)
+		if err != nil {
+			util.LogInfo("error generating jwt")
+			util.LogError(err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		response := models.AuthResponse{
+			JWTToken:  jwtToken,
+			ExpiresAt: expiresAt.Unix(),
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(response)
 	case models.PROVIDER_FB:
 		data.Set("client_id", providerConfig.ClientID)
 		data.Set("client_secret", providerConfig.ClientSecret)
 		data.Set("grant_type", "fb_exchange_token")
 		data.Set("fb_exchange_token", token.AccessToken)
-	case models.PROVIDER_GOOGLE, models.PROVIDER_APPLE:
+	case models.PROVIDER_GOOGLE:
 		data.Set("client_id", providerConfig.ClientID)
 		data.Set("client_secret", "")
 		data.Set("grant_type", "refresh_token")
@@ -281,6 +328,9 @@ func (h *Handler) RefreshTokenHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	expiresAt := time.Now().Add(time.Duration(tokenResponse.ExpiresIn) * time.Second)
+	if h.cfg.App.CustomExpiresTime {
+		expiresAt = time.Now().Add(time.Second * time.Duration(h.cfg.App.ExpiresTime))
+	}
 
 	// Update token
 	_, err = h.repo.TokenRepository().UpdateToken(
@@ -296,6 +346,7 @@ func (h *Handler) RefreshTokenHandler(w http.ResponseWriter, r *http.Request) {
 			UpdatedAt:    time.Now(),
 		},
 		token.Provider,
+		deviceUUID,
 	)
 	if err != nil {
 		util.LogError(err)
@@ -303,7 +354,7 @@ func (h *Handler) RefreshTokenHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	newJWT, _, err := util.GenerateJWT(token.UserID, provider, expiresAt.Unix())
+	newJWT, _, err := util.GenerateJWT(token.UserID, provider, expiresAt.Unix(), deviceUUID)
 	if err != nil {
 		util.LogError(err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -336,6 +387,13 @@ func (h *Handler) LogoutHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	deviceUUID, ok := r.Context().Value("device_uuid").(string)
+	if !ok {
+		util.LogError(errors.New("Invalid deviceUUID in context"))
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
 	token := h.repo.TokenRepository().UserToken(userID, provider)
 	if token == nil {
 		util.LogError(errors.New("Token not found"))
@@ -350,21 +408,29 @@ func (h *Handler) LogoutHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	decryptAccess, err := util.Decrypt(token.AccessToken)
-	if err != nil {
-		util.LogError(err)
-		w.WriteHeader(http.StatusUnauthorized)
-		return
+	decryptAccess := ""
+	if token.AccessToken != "" {
+		decryptAccess, err = util.Decrypt(token.AccessToken)
+		if err != nil {
+			util.LogError(err)
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 	}
 
 	// Set data for provider
 	data := url.Values{}
 	switch provider {
-	case models.PROVIDER_FB:
-		data.Set("next", "http://localhost:3000/")
-		data.Set("access_token", decryptAccess)
-	case models.PROVIDER_GOOGLE,
-		models.PROVIDER_APPLE:
+	case models.PROVIDER_APPLE:
+		err = h.repo.TokenRepository().InvalidateIdToken(token.IDToken, deviceUUID)
+		if err != nil {
+			util.LogError(err)
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		return
+	case models.PROVIDER_GOOGLE:
 		data.Set("token", decryptAccess)
 	default:
 		util.LogError(errors.New("Unsupported provider"))
@@ -386,14 +452,13 @@ func (h *Handler) LogoutHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.repo.TokenRepository().InvalidateToken(token.AccessToken); err != nil {
+	if err := h.repo.TokenRepository().InvalidateAccessToken(token.AccessToken, deviceUUID); err != nil {
 		util.LogError(err)
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
 	// Send response
-	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 }
 
@@ -423,6 +488,9 @@ func getProviderConfig(provider string, cfg config.Authorization) (providers.Pro
 			TokenURL:     cfg.Apple.TokenURL,
 			UserInfoURL:  cfg.Apple.UserInfoURL,
 			RevokeURL:    cfg.Apple.RevokeURL,
+			TeamID:       cfg.Apple.TeamID,
+			SecretPath:   cfg.Apple.SecretPath,
+			KeyID:        cfg.Apple.KeyID,
 		}, nil
 	default:
 		return providers.ProviderConfig{}, fmt.Errorf("unsupported provider: %s", provider)

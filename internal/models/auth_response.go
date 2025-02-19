@@ -4,6 +4,7 @@ var AuthBodyRequest struct {
 	IdToken      string `json:"idToken,omitempty"`      // Google, Apple
 	AccessToken  string `json:"accessToken,omitempty"`  // Facebook, Google
 	RefreshToken string `json:"refreshToken,omitempty"` // Google
+	DeviceUUID   string `json:"uuid,omitempty"`
 }
 
 type AuthResponse struct {

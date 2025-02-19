@@ -40,23 +40,54 @@ func (h *Handler) GetUserProfile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	rings := make([]models.Ring, 0)
+	rings := make([]models.RingResponse, 0)
 	for _, userRing := range userRings {
-		ring, err := h.repo.RingRepository().GetRing(userRing.RingID)
+		ringDB, err := h.repo.RingRepository().GetRing(userRing.RingID)
 		if err != nil {
 			util.LogError(err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
-		rings = append(rings, *ring)
+
+		var service []string
+		for _, v := range ringDB.Services {
+			service = append(service, string(v.Service))
+		}
+
+		rings = append(rings, models.RingResponse{
+			Id:          ringDB.Id,
+			Name:        ringDB.Name,
+			UserNamed:   ringDB.UserNamed,
+			Description: ringDB.Description,
+			ImageURL:    ringDB.ImageURL,
+			SiteURL:     ringDB.SiteURL,
+			Services:    service,
+			DeviceDescription: models.DeviceDescriptionResponse{
+				CIN:         ringDB.DeviceDescription.CIN,
+				IIN:         ringDB.DeviceDescription.IIN,
+				Name:        ringDB.DeviceDescription.Name,
+				Description: ringDB.DeviceDescription.Description,
+				Batch: models.RingBatchResponse{
+					BatchId:    ringDB.DeviceDescription.Batch.BatchId,
+					IsUser:     ringDB.DeviceDescription.Batch.IsUser,
+					IsUserName: ringDB.DeviceDescription.Batch.IsUserName,
+				},
+			},
+		})
+	}
+
+	demo := false
+	if h.cfg.App.DemoMode && h.cfg.App.DemoEmail == user.Email {
+		demo = true
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(models.UserProfileGETResponse{
-		UserId: user.ID,
+		UserId: 0,
 		Name:   user.Name,
 		Email:  user.Email,
 		Rings:  rings,
+		Demo:   demo,
 	})
 }

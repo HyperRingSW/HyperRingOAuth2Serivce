@@ -15,11 +15,10 @@ type UserRepository interface {
 
 type TokenRepository interface {
 	CreateOrUpdateToken(newToken models.Token) (*models.Token, error)
-	UpdateToken(token models.Token, provider string) (*models.Token, error)
-	CreateToken(token *models.Token) error
-	InvalidateToken(accessToken string) error
+	UpdateToken(token models.Token, provider string, deviceUUID string) (*models.Token, error)
+	InvalidateAccessToken(accessToken string, deviceUUID string) error
+	InvalidateIdToken(idToken string, deviceUUID string) error
 	UserToken(userId uint, provider string) *models.Token
-	RefreshAccessToken(refreshToken string, needEncrypt bool) (*models.Token, error)
 }
 
 type RingRepository interface {

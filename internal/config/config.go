@@ -8,7 +8,11 @@ import (
 )
 
 type AppConfig struct {
-	Addr string `env:"APP_ADDR" env-default:"localhost:8090"`
+	Addr              string `env:"APP_ADDR" env-default:"localhost:8090"`
+	ExpiresTime       int    `env:"EXPIRES_TIME" env-default:"60"`
+	CustomExpiresTime bool   `env:"CUSTOM_EXPIRES_TIME" env-default:"false"`
+	DemoEmail         string `env:"DEMO_EMAIL" env-default:"admin@example.com"`
+	DemoMode          bool   `env:"DEMO_MODE" env-default:"false"`
 }
 
 type OAuht2Config struct {
@@ -42,9 +46,12 @@ type GoogleAuthConfig struct {
 
 type AppleAuthConfig struct {
 	OAuthProviderConfig
-	TokenURL    string `env:"OAUTH_TOKEN_URL" env-default:"https://oauth2.googleapis.com/token"`
-	UserInfoURL string `env:"OAUTH_USER_INFO_URL" env-default:"https://www.googleapis.com/oauth2/v3/userinfo"`
-	RevokeURL   string `env:"OAUTH_REVOKE_URL" env-default:"https://www.facebook.com/logout.php"`
+	TokenURL    string `env:"OAUTH_TOKEN_URL" env-default:""`
+	UserInfoURL string `env:"OAUTH_USER_INFO_URL" env-default:""`
+	RevokeURL   string `env:"OAUTH_REVOKE_URL" env-default:""`
+	TeamID      string `env:"OAUTH_TEAM_ID" env-default:""`
+	SecretPath  string `env:"OAUTH_CLIENT_SECRET_PATH" env-default:""`
+	KeyID       string `env:"OAUTH_KEY_ID" env-default:""`
 }
 
 type FacebookAuthConfig struct {

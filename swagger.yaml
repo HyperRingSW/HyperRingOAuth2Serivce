@@ -1,7 +1,7 @@
 openapi: 3.0.0
 info:
   title: OAuth2 Server API
-  version: "0.0.9"
+  version: "0.0.15"
   description: API for managing OAuth2 authentication and authorization.
 servers:
   - url: http://localhost:8090
@@ -28,10 +28,8 @@ paths:
                 $ref: '#/components/schemas/AuthResponse'
         '400':
           description: Bad request
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPError'
+        '404':
+          description: Not found
         '500':
           description: Internal server error
   /auth/apple:
@@ -55,10 +53,8 @@ paths:
                 $ref: '#/components/schemas/AuthResponse'
         '400':
           description: Bad request
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPError'
+        '404':
+          description: Not found
         '500':
           description: Internal server error
 
@@ -76,22 +72,10 @@ paths:
                 $ref: '#/components/schemas/AuthResponse'
         '400':
           description: Invalid request data
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPError'
         '401':
           description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPError'
         '500':
           description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPError'
 
   /auth/logout:
     post:
@@ -101,22 +85,10 @@ paths:
       responses:
         '200':
           description: Successful logout
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/LogoutSuccess'
         '400':
           description: Invalid request data
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPError'
         '500':
           description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPError'
 
   /user/profile:
     get:
@@ -132,19 +104,11 @@ paths:
                 $ref: '#/components/schemas/UserProfileResponse'
         '401':
           description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPError'
         '500':
           description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPError'
 
   /user/ring:
-    patch:
+    post:
       summary: Attaching ring to user
       operationId: Ring
       requestBody:
@@ -162,7 +126,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/UserProfileResponse'
 
-    post:
+    patch:
       summary: Update user ring name
       description: Updates the name of a ring assigned to a user.
       operationId: UpdateRingHandler
@@ -179,16 +143,8 @@ paths:
           description: Ring name updated successfully
         '400':
           description: Invalid request data
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPError'
         '401':
           description: Unauthorized
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPError'
         '404':
           description: User ring not found
           content:
@@ -218,6 +174,10 @@ components:
     GoogleAuthRequest:
       type: object
       properties:
+        uuid:
+          type: string
+          description: device uuid
+          example: "3edc01a7-f6b7-4552-9fad-105d51cacb92"
         idToken:
           type: string
           description: ID token (Google and Apple)
@@ -235,12 +195,12 @@ components:
       properties:
         idToken:
           type: string
-          description: ID token (Google and Apple)
+          description: ID token
           example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-        accessToken:
+        uuid:
           type: string
-          description: Access token (Facebook and Google)
-          example: "EAAJZC..."
+          description: device uuid
+          example: "3edc01a7-f6b7-4552-9fad-105d51cacb92"
     LogoutSuccess:
       type: object
       properties:
@@ -262,9 +222,6 @@ components:
     UserProfileResponse:
       type: object
       properties:
-        userId:
-          type: integer
-          example: 3
         name:
           type: string
           example: "name"
@@ -275,18 +232,19 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Ring'
-    Ring:
+        demo:
+          type: boolean
+          example: false
+    RingResponse:
       type: object
-      required:
-        - id
-        - name
-        - services
-        - deviceDescription
       properties:
         id:
           type: string
           example: "ring-001"
         name:
+          type: string
+          example: "ring name"
+        userNamed:
           type: string
           example: "ring name"
         description:
@@ -301,10 +259,52 @@ components:
           format: uri
           example: "https://example.com"
         services:
-          type: string
-          example: "install"
+          type: array
+          items:
+            type: string
+          example:
+            - "install"
         deviceDescription:
           $ref: '#/components/schemas/DeviceDescriptionRequest'
+    Ring:
+      type: object
+      properties:
+        id:
+          type: string
+          example: "ring-001"
+        name:
+          type: string
+          example: "ring name"
+        userNamed:
+          type: string
+          example: "ring name"
+        description:
+          type: string
+          example: "description"
+        imageUrl:
+          type: string
+          format: uri
+          example: "https://example.com/ring.png"
+        siteUrl:
+          type: string
+          format: uri
+          example: "https://example.com"
+        services:
+          type: array
+          items:
+            type: string
+          example:
+            - "install"
+        deviceDescription:
+          $ref: '#/components/schemas/DeviceDescriptionRequest'
+    RingService:
+      type: object
+      required:
+        - service
+      properties:
+        service:
+          type: string
+          example: "install"
     DeviceDescriptionRequest:
       type: object
       required:

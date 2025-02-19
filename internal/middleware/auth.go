@@ -37,6 +37,7 @@ func AuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
 		// Set context KV
 		ctx := context.WithValue(r.Context(), "userID", userID)
 		ctx = context.WithValue(ctx, "provider", claims["provider"])
+		ctx = context.WithValue(ctx, "deviceUUID", claims["device_uuid"])
 		next(w, r.WithContext(ctx))
 	}
 }

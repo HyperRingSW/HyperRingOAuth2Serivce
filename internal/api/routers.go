@@ -19,7 +19,7 @@ func RegisterRoutes(router *mux.Router, handler dependency.Handler) {
 		handler.AuthHandler().RefreshTokenHandler(w, r)
 	})).Methods("POST")
 
-	router.HandleFunc("/auth/logout", middleware.AuthMiddleware(func(w http.ResponseWriter, r *http.Request) {
+	router.HandleFunc("/user/logout", middleware.AuthMiddleware(func(w http.ResponseWriter, r *http.Request) {
 		handler.AuthHandler().LogoutHandler(w, r)
 	})).Methods("POST")
 
@@ -31,17 +31,21 @@ func RegisterRoutes(router *mux.Router, handler dependency.Handler) {
 	//Attach User Ring
 	router.HandleFunc("/user/ring", middleware.AuthMiddleware(func(w http.ResponseWriter, r *http.Request) {
 		handler.RingHandler().AttachRingHandler(w, r)
-	})).Methods("PATCH")
+	})).Methods("POST")
 
 	//Update ring user name
 	router.HandleFunc("/user/ring", middleware.AuthMiddleware(func(w http.ResponseWriter, r *http.Request) {
 		handler.RingHandler().UpdateRingHandler(w, r)
-	})).Methods("POST")
+	})).Methods("PATCH")
 
 	//Unlink ring
 	router.HandleFunc("/user/ring", middleware.AuthMiddleware(func(w http.ResponseWriter, r *http.Request) {
 		handler.RingHandler().UnlinkRingHandler(w, r)
 	})).Methods("DELETE")
+
+	router.HandleFunc("/swagger", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "internal/public/swagger.html")
+	}).Methods("GET")
 
 	router.HandleFunc("/swagger/", func(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, "internal/public/swagger.html")
