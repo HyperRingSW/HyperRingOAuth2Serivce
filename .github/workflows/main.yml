@@ -155,11 +155,3 @@ jobs:
             cd /home/ubuntu/hyper-auth-app
             pm2 restart hyper-auth || pm2 start ./server --name hyper-auth
           EOF
-
-      # 11) Check PM2 logs
-      - name: Check PM2 logs
-        run: |
-          ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ubuntu@"$EC2_HOST" << 'EOF'
-            cd "$DESTINATION_PATH"
-            pm2 logs
-          EOF
