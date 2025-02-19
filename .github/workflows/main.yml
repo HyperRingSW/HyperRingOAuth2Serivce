@@ -110,32 +110,32 @@ jobs:
       - name: Upload build artifacts
         run: |
           sudo apt-get install -y rsync
-          echo "$DESTINATION_PATH"
+          
           # Upload the Go binary and .env file to the appropriate EC2 host
           rsync -avz -e "ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa" \
             bin/server .env \
             ubuntu@"$EC2_HOST":"$DESTINATION_PATH/"
 
-      # 7) Verify binary exists
+      # 7) Set permissions on the server
+      - name: Set permissions on the server
+        run: |
+          ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ubuntu@"$EC2_HOST" << 'EOF'
+            cd "$DESTINATION_PATH"
+            chmod +x ./server
+            chmod 644 .env
+            ls -l
+          EOF
+
+      # 8) Verify binary exists
       - name: Verify binary exists
         run: |
           ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ubuntu@"$EC2_HOST" << 'EOF'
-            echo "$DESTINATION_PATH"
             cd "$DESTINATION_PATH"
             if [ -f ./server ]; then
               echo "Binary exists at $(pwd)/server"
             else
               echo "Binary not found at $(pwd)/server"
             fi
-          EOF
-
-      # 8) Verify binary permissions
-      - name: Verify binary permissions
-        run: |
-          ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ubuntu@"$EC2_HOST" << 'EOF'
-            cd "$DESTINATION_PATH"
-            chmod +x ./server
-            ls -l ./server
           EOF
 
       # 9) Test binary execution
