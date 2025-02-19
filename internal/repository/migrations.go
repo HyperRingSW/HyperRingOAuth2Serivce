@@ -51,5 +51,32 @@ func RunMigrations(db *gorm.DB) error {
 		}
 	}
 
+	if !db.Migrator().HasColumn(&models.Token{}, "device_uuid") {
+		addColumnQuery := fmt.Sprintf(`
+			ALTER TABLE tokens
+			ADD COLUMN device_uuid VARCHAR(255) DEFAULT '%s'
+		`, models.DefaultUUID)
+		if err := db.Exec(addColumnQuery).Error; err != nil {
+			return fmt.Errorf("failed to add column device_uuid in tokens table: %w", err)
+		}
+	}
+
+	updateQuery := fmt.Sprintf(`
+			UPDATE tokens
+			SET device_uuid = '%s'
+			WHERE device_uuid IS NULL OR device_uuid = '%s'
+		`, models.DefaultUUID, models.DefaultUUID)
+	if err := db.Exec(updateQuery).Error; err != nil {
+		return fmt.Errorf("failed to update device_uuid for existing tokens: %w", err)
+	}
+
+	alterColumnQuery := `
+			ALTER TABLE tokens
+			ALTER COLUMN device_uuid SET NOT NULL
+		`
+	if err := db.Exec(alterColumnQuery).Error; err != nil {
+		return fmt.Errorf("failed to set NOT NULL on device_uuid in tokens table: %w", err)
+	}
+
 	return nil
 }

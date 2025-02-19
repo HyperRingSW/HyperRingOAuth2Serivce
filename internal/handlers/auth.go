@@ -67,18 +67,6 @@ func (h *Handler) AuthUserHandler(w http.ResponseWriter, r *http.Request, provid
 			return
 		}
 
-	case models.PROVIDER_FB:
-		if body.AccessToken == "" {
-			util.LogError(errors.New("accessToken is required"))
-			w.WriteHeader(http.StatusBadRequest)
-			return
-		}
-		claims, err = providers.GetFacebookUserInfo(body.AccessToken, providerConfig.UserInfoURL)
-		if err != nil {
-			util.LogError(err)
-			w.WriteHeader(http.StatusBadRequest)
-			return
-		}
 	case models.PROVIDER_APPLE:
 		if body.IdToken == "" {
 			util.LogError(errors.New("idToken is required"))
@@ -140,10 +128,15 @@ func (h *Handler) AuthUserHandler(w http.ResponseWriter, r *http.Request, provid
 		expiresAt = time.Now().Add(time.Second * time.Duration(h.cfg.App.ExpiresTime))
 	}
 
+	if body.DeviceUUID == "" {
+		body.DeviceUUID = models.DefaultUUID
+	}
+
 	// Create token
 	newToken := models.Token{
 		UserID:       user.ID,
 		Provider:     provider,
+		DeviceUUID:   body.DeviceUUID,
 		AccessToken:  body.AccessToken,
 		RefreshToken: body.RefreshToken,
 		IDToken:      body.IdToken,
@@ -160,7 +153,7 @@ func (h *Handler) AuthUserHandler(w http.ResponseWriter, r *http.Request, provid
 	}
 
 	// Generate JWT token
-	jwtToken, _, err := util.GenerateJWT(user.ID, provider, expiresAt.Unix())
+	jwtToken, _, err := util.GenerateJWT(user.ID, provider, expiresAt.Unix(), body.DeviceUUID)
 	if err != nil {
 		util.LogError(err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -184,6 +177,13 @@ func (h *Handler) RefreshTokenHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	provider, ok := r.Context().Value("provider").(string)
+	if !ok {
+		util.LogError(errors.New("invalid provider in context"))
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	deviceUUID, ok := r.Context().Value("deviceUUID").(string)
 	if !ok {
 		util.LogError(errors.New("invalid provider in context"))
 		w.WriteHeader(http.StatusInternalServerError)
@@ -251,7 +251,7 @@ func (h *Handler) RefreshTokenHandler(w http.ResponseWriter, r *http.Request) {
 			expiresAt = time.Now().Add(time.Second * time.Duration(h.cfg.App.ExpiresTime))
 		}
 
-		jwtToken, _, err := util.GenerateJWT(userID, provider, expiresAt.Unix())
+		jwtToken, _, err := util.GenerateJWT(userID, provider, expiresAt.Unix(), deviceUUID)
 		if err != nil {
 			util.LogInfo("error generating jwt")
 			util.LogError(err)
@@ -346,6 +346,7 @@ func (h *Handler) RefreshTokenHandler(w http.ResponseWriter, r *http.Request) {
 			UpdatedAt:    time.Now(),
 		},
 		token.Provider,
+		deviceUUID,
 	)
 	if err != nil {
 		util.LogError(err)
@@ -353,7 +354,7 @@ func (h *Handler) RefreshTokenHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	newJWT, _, err := util.GenerateJWT(token.UserID, provider, expiresAt.Unix())
+	newJWT, _, err := util.GenerateJWT(token.UserID, provider, expiresAt.Unix(), deviceUUID)
 	if err != nil {
 		util.LogError(err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -386,6 +387,13 @@ func (h *Handler) LogoutHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	deviceUUID, ok := r.Context().Value("device_uuid").(string)
+	if !ok {
+		util.LogError(errors.New("Invalid deviceUUID in context"))
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
 	token := h.repo.TokenRepository().UserToken(userID, provider)
 	if token == nil {
 		util.LogError(errors.New("Token not found"))
@@ -414,7 +422,7 @@ func (h *Handler) LogoutHandler(w http.ResponseWriter, r *http.Request) {
 	data := url.Values{}
 	switch provider {
 	case models.PROVIDER_APPLE:
-		err = h.repo.TokenRepository().InvalidateIdToken(token.IDToken)
+		err = h.repo.TokenRepository().InvalidateIdToken(token.IDToken, deviceUUID)
 		if err != nil {
 			util.LogError(err)
 			w.WriteHeader(http.StatusBadRequest)
@@ -444,7 +452,7 @@ func (h *Handler) LogoutHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.repo.TokenRepository().InvalidateAccessToken(token.AccessToken); err != nil {
+	if err := h.repo.TokenRepository().InvalidateAccessToken(token.AccessToken, deviceUUID); err != nil {
 		util.LogError(err)
 		w.WriteHeader(http.StatusBadRequest)
 		return

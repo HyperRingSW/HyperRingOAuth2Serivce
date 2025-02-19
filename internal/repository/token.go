@@ -61,6 +61,7 @@ func (repo *PostgresDB) CreateOrUpdateToken(token models.Token) (*models.Token, 
 		ID:           token.ID,
 		UserID:       token.UserID,
 		Provider:     token.Provider,
+		DeviceUUID:   token.DeviceUUID,
 		AccessToken:  encryptedAccessToken,
 		RefreshToken: encryptedRefreshToken,
 		ExpirationIn: token.ExpirationIn,
@@ -70,7 +71,7 @@ func (repo *PostgresDB) CreateOrUpdateToken(token models.Token) (*models.Token, 
 		UpdatedAt:    token.UpdatedAt,
 	}
 
-	result := repo.db.Where("user_id = ?", token.UserID).First(&newToken)
+	result := repo.db.Where("user_id = ? AND device_uuid = ?", token.UserID, token.DeviceUUID).First(&newToken)
 	if result.RowsAffected == 0 {
 		token.UpdatedAt = time.Now()
 		if err := repo.db.Create(&token).Error; err != nil {
@@ -95,7 +96,7 @@ func (repo *PostgresDB) CreateOrUpdateToken(token models.Token) (*models.Token, 
 	return &token, nil
 }
 
-func (repo *PostgresDB) UpdateToken(token models.Token, provider string) (*models.Token, error) {
+func (repo *PostgresDB) UpdateToken(token models.Token, provider string, deviceUUID string) (*models.Token, error) {
 	encryptedAccessToken := ""
 	if token.AccessToken != "" {
 		enc, err := util.Encrypt(token.AccessToken)
@@ -136,19 +137,19 @@ func (repo *PostgresDB) UpdateToken(token models.Token, provider string) (*model
 		delete(updates, "refresh_token")
 	}
 
-	if err := repo.db.Model(&token).Where("user_id = ?", token.UserID).Updates(updates).Error; err != nil {
+	if err := repo.db.Model(&token).Where("user_id = ? and device_uuid = ?", token.UserID, deviceUUID).Updates(updates).Error; err != nil {
 		return nil, errors.New("error update token: " + err.Error())
 	}
 
 	return &token, nil
 }
 
-func (repo *PostgresDB) InvalidateAccessToken(accessToken string) error {
-	return repo.db.Where("access_token = ?", accessToken).Delete(&models.Token{}).Error
+func (repo *PostgresDB) InvalidateAccessToken(accessToken string, deviceUUID string) error {
+	return repo.db.Where("access_token = ? and device_uuid", accessToken, deviceUUID).Delete(&models.Token{}).Error
 }
 
-func (repo *PostgresDB) InvalidateIdToken(idToken string) error {
-	return repo.db.Where("id_token = ?", idToken).Delete(&models.Token{}).Error
+func (repo *PostgresDB) InvalidateIdToken(idToken string, deviceUUID string) error {
+	return repo.db.Where("id_token = ?", idToken, deviceUUID).Delete(&models.Token{}).Error
 }
 
 func (repo *PostgresDB) UserToken(userId uint, provider string) *models.Token {

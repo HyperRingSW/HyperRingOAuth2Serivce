@@ -174,6 +174,10 @@ components:
     GoogleAuthRequest:
       type: object
       properties:
+        uuid:
+          type: string
+          description: device uuid
+          example: "3edc01a7-f6b7-4552-9fad-105d51cacb92"
         idToken:
           type: string
           description: ID token (Google and Apple)
@@ -191,8 +195,12 @@ components:
       properties:
         idToken:
           type: string
-          description: ID token (Google and Apple)
+          description: ID token
           example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+        uuid:
+          type: string
+          description: device uuid
+          example: "3edc01a7-f6b7-4552-9fad-105d51cacb92"
     LogoutSuccess:
       type: object
       properties:
