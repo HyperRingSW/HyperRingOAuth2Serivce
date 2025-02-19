@@ -150,6 +150,8 @@ jobs:
       - name: Start service with PM2
         run: |
           ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa ubuntu@"$EC2_HOST" << 'EOF'
+            pwd
+            echo "$DESTINATION_PATH"
             cd "$DESTINATION_PATH"
             pm2 restart hyper-auth || pm2 start ./server --name hyper-auth
           EOF
