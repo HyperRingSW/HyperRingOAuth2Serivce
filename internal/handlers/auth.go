@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/google/uuid"
 	"io"
 	"net/http"
 	"net/url"
@@ -129,7 +130,7 @@ func (h *Handler) AuthUserHandler(w http.ResponseWriter, r *http.Request, provid
 	}
 
 	if body.DeviceUUID == "" {
-		body.DeviceUUID = models.DefaultUUID
+		body.DeviceUUID = uuid.New().String()
 	}
 
 	// Create token
@@ -185,7 +186,7 @@ func (h *Handler) RefreshTokenHandler(w http.ResponseWriter, r *http.Request) {
 
 	deviceUUID, ok := r.Context().Value("deviceUUID").(string)
 	if !ok {
-		util.LogError(errors.New("invalid provider in context"))
+		util.LogError(errors.New("invalid deviceUUID in context"))
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -387,10 +388,10 @@ func (h *Handler) LogoutHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	deviceUUID, ok := r.Context().Value("device_uuid").(string)
+	deviceUUID, ok := r.Context().Value("deviceUUID").(string)
 	if !ok {
-		util.LogError(errors.New("Invalid deviceUUID in context"))
-		w.WriteHeader(http.StatusUnauthorized)
+		util.LogError(errors.New("invalid deviceUUID in context"))
+		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 

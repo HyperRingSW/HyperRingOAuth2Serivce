@@ -145,11 +145,11 @@ func (repo *PostgresDB) UpdateToken(token models.Token, provider string, deviceU
 }
 
 func (repo *PostgresDB) InvalidateAccessToken(accessToken string, deviceUUID string) error {
-	return repo.db.Where("access_token = ? and device_uuid", accessToken, deviceUUID).Delete(&models.Token{}).Error
+	return repo.db.Where("access_token = ? and device_uuid = ?", accessToken, deviceUUID).Delete(&models.Token{}).Error
 }
 
 func (repo *PostgresDB) InvalidateIdToken(idToken string, deviceUUID string) error {
-	return repo.db.Where("id_token = ?", idToken, deviceUUID).Delete(&models.Token{}).Error
+	return repo.db.Where("id_token = ? and device_uuid = ?", idToken, deviceUUID).Delete(&models.Token{}).Error
 }
 
 func (repo *PostgresDB) UserToken(userId uint, provider string) *models.Token {
