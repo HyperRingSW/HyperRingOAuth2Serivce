@@ -48,8 +48,13 @@ type AuthHandler interface {
 	RefreshTokenHandler(w http.ResponseWriter, r *http.Request)
 	LogoutHandler(w http.ResponseWriter, r *http.Request)
 }
+
 type UserHandler interface {
 	GetUserProfile(w http.ResponseWriter, r *http.Request)
+}
+
+type MiddleHandler interface {
+	AuthMiddleware(next http.HandlerFunc) http.HandlerFunc
 }
 
 type RingHandler interface {

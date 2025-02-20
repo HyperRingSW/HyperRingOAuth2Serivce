@@ -132,6 +132,7 @@ func (h *Handler) AuthUserHandler(w http.ResponseWriter, r *http.Request, provid
 	if body.DeviceUUID == "" {
 		body.DeviceUUID = uuid.New().String()
 	}
+	fmt.Println("AuthDevice:", body.DeviceUUID)
 
 	// Create token
 	newToken := models.Token{
@@ -402,7 +403,7 @@ func (h *Handler) LogoutHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	providerConfig, err := getProviderConfig(provider, h.cfg.Authorization)
+	/*providerConfig, err := getProviderConfig(provider, h.cfg.Authorization)
 	if err != nil {
 		util.LogError(err)
 		w.WriteHeader(http.StatusBadRequest)
@@ -417,13 +418,13 @@ func (h *Handler) LogoutHandler(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
-	}
+	}*/
 
 	// Set data for provider
-	data := url.Values{}
+	//data := url.Values{}
 	switch provider {
 	case models.PROVIDER_APPLE:
-		err = h.repo.TokenRepository().InvalidateIdToken(token.IDToken, deviceUUID)
+		err := h.repo.TokenRepository().InvalidateIdToken(token.IDToken, deviceUUID)
 		if err != nil {
 			util.LogError(err)
 			w.WriteHeader(http.StatusBadRequest)
@@ -432,14 +433,14 @@ func (h *Handler) LogoutHandler(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		return
 	case models.PROVIDER_GOOGLE:
-		data.Set("token", decryptAccess)
+		//data.Set("token", decryptAccess)
 	default:
 		util.LogError(errors.New("Unsupported provider"))
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
-	resp, err := http.PostForm(providerConfig.RevokeURL, data)
+	/*resp, err := http.PostForm(providerConfig.RevokeURL, data)
 	if err != nil {
 		util.LogError(err)
 		w.WriteHeader(http.StatusBadRequest)
@@ -451,7 +452,7 @@ func (h *Handler) LogoutHandler(w http.ResponseWriter, r *http.Request) {
 		util.LogError(errors.New("Token revocation failed"))
 		w.WriteHeader(http.StatusBadRequest)
 		return
-	}
+	}*/
 
 	if err := h.repo.TokenRepository().InvalidateAccessToken(token.AccessToken, deviceUUID); err != nil {
 		util.LogError(err)

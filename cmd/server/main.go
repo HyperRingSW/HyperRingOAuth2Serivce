@@ -24,9 +24,10 @@ func main() {
 	}
 
 	handler := handlers.NewHandler(cfg, repo)
+	middlewares := middleware.NewMiddleware(repo)
 
 	router := mux.NewRouter()
-	api.RegisterRoutes(router, handler)
+	api.RegisterRoutes(router, handler, middlewares)
 
 	// Add rate limiting middleware
 	rateLimitedRouter := middleware.RateLimiter(router)
