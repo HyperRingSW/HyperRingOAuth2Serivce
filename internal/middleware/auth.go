@@ -10,6 +10,8 @@ import (
 
 func AuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		requestPath := r.URL.Path
+
 		authHeader := r.Header.Get("Authorization")
 		if !strings.HasPrefix(authHeader, "Bearer ") {
 			util.LogError(errors.New("authorization header format is incorrect"))
@@ -19,7 +21,7 @@ func AuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
 
 		token := strings.TrimPrefix(authHeader, "Bearer ")
 
-		claims, err := util.ParseJWT(token)
+		claims, err := util.ParseJWT(token, requestPath)
 		if err != nil {
 			util.LogError(err)
 			w.WriteHeader(http.StatusUnauthorized)
