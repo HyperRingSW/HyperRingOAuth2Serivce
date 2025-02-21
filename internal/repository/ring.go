@@ -42,6 +42,8 @@ func (repo *PostgresDB) SaveRing(ring *models.Ring) (*models.Ring, error) {
 		if err := repo.db.Create(&ring).Error; err != nil {
 			return nil, errors.New("error save ring: " + err.Error())
 		}
+	} else {
+		return nil, errors.New("ring already exists")
 	}
 
 	return &savedRing, nil

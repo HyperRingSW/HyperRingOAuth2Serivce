@@ -3,6 +3,7 @@ package util
 import (
 	"errors"
 	"github.com/golang-jwt/jwt/v5"
+	"strings"
 )
 
 var jwtSecret = []byte("86194778010")
@@ -26,7 +27,7 @@ func GenerateJWT(userID uint, provider string, expirationTime int64, deviceUUID 
 }
 
 // ParseJWT
-func ParseJWT(tokenString string) (jwt.MapClaims, error) {
+func ParseJWT(tokenString string, requestPath string) (jwt.MapClaims, error) {
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, errors.New("unexpected signing method")
@@ -34,13 +35,17 @@ func ParseJWT(tokenString string) (jwt.MapClaims, error) {
 		return jwtSecret, nil
 	})
 
-	if err != nil {
+	if err != nil && (strings.Contains(err.Error(), "expired") && requestPath != "/auth/token/refresh") {
 		return nil, err
+	}
+
+	if requestPath == "/auth/token/refresh" {
+		token.Valid = true
 	}
 
 	if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
 		return claims, nil
 	}
 
-	return nil, errors.New("invalid token2")
+	return nil, errors.New("invalid token")
 }
