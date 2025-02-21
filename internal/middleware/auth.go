@@ -30,6 +30,7 @@ func (h *Middleware) MiddleHandler() dependency.MiddleHandler {
 }
 
 func (h *Middleware) AuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
+	util.LogInfo("AuthMiddleware")
 	return func(w http.ResponseWriter, r *http.Request) {
 		requestPath := r.URL.Path
 
@@ -44,6 +45,7 @@ func (h *Middleware) AuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
 
 		claims, err := util.ParseJWT(token, requestPath)
 		if err != nil {
+			util.LogInfo("AuthMiddleware invalid token")
 			util.LogError(err)
 			w.WriteHeader(http.StatusUnauthorized)
 			return
@@ -51,6 +53,7 @@ func (h *Middleware) AuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
 
 		idFloat, ok := claims["user_id"].(float64)
 		if !ok {
+			util.LogInfo("invalid user id")
 			util.LogError(err)
 			w.WriteHeader(http.StatusUnauthorized)
 			return

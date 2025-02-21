@@ -21,6 +21,7 @@ func (h *Handler) RingHandler() dependency.RingHandler {
 }
 
 func (h *Handler) AttachRingHandler(w http.ResponseWriter, r *http.Request) {
+	util.LogInfo("AttachRingHandler")
 	userID, ok := r.Context().Value("userID").(uint)
 	if !ok {
 		util.LogError(errors.New("invalid user ID in context"))
@@ -68,6 +69,7 @@ func (h *Handler) AttachRingHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) UpdateRingHandler(w http.ResponseWriter, r *http.Request) {
+	util.LogInfo("UpdateRingHandler")
 	userID, ok := r.Context().Value("userID").(uint)
 	if !ok {
 		util.LogError(errors.New("invalid user ID in context"))
@@ -102,6 +104,7 @@ func (h *Handler) UpdateRingHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) UnlinkRingHandler(w http.ResponseWriter, r *http.Request) {
+	util.LogInfo("UnlinkRingHandler")
 	userID, ok := r.Context().Value("userID").(uint)
 	if !ok {
 		util.LogError(errors.New("invalid user ID in context"))

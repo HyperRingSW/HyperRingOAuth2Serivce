@@ -20,6 +20,7 @@ func (h *Handler) UserHandler() dependency.UserHandler {
 }
 
 func (h *Handler) GetUserProfile(w http.ResponseWriter, r *http.Request) {
+	util.LogInfo("GetUserProfile")
 	userID, ok := r.Context().Value("userID").(uint)
 	if !ok {
 		http.Error(w, `{"error": "Invalid user ID in context"}`, http.StatusUnauthorized)
