@@ -35,11 +35,11 @@ func ParseJWT(tokenString string, requestPath string) (jwt.MapClaims, error) {
 		return jwtSecret, nil
 	})
 
-	if err != nil && (strings.Contains(err.Error(), "expired") && requestPath != "/auth/token/refresh") {
+	if err != nil && (strings.Contains(err.Error(), "expired") && (requestPath != "/auth/token/refresh" && requestPath != "/user/logout")) {
 		return nil, err
 	}
 
-	if requestPath == "/auth/token/refresh" {
+	if requestPath == "/auth/token/refresh" || requestPath == "/user/logout" {
 		token.Valid = true
 	}
 
