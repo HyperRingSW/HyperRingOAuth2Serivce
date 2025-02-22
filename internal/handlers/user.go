@@ -45,6 +45,7 @@ func (h *Handler) GetUserProfile(w http.ResponseWriter, r *http.Request) {
 	for _, userRing := range userRings {
 		ringDB, err := h.repo.RingRepository().GetRing(userRing.RingID)
 		if err != nil {
+			util.LogInfo("error getting ring from db")
 			util.LogError(err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
