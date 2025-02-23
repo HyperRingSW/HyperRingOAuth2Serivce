@@ -99,6 +99,8 @@ paths:
           description: Successful remove
         '400':
           description: Invalid request data
+        '401':
+          description: Unauthorized
         '500':
           description: Internal server error
   /user/profile:
