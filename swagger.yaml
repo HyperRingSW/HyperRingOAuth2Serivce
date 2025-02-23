@@ -89,7 +89,18 @@ paths:
           description: Invalid request data
         '500':
           description: Internal server error
-
+  /user/romove:
+    post:
+      summary: Remove user
+      description: Remove user
+      operationId: RemoveHandler
+      responses:
+        '200':
+          description: Successful remove
+        '400':
+          description: Invalid request data
+        '500':
+          description: Internal server error
   /user/profile:
     get:
       summary: Get User Profile
@@ -281,14 +292,6 @@ components:
         description:
           type: string
           example: "description"
-        imageUrl:
-          type: string
-          format: uri
-          example: "https://example.com/ring.png"
-        siteUrl:
-          type: string
-          format: uri
-          example: "https://example.com"
         services:
           type: array
           items:
