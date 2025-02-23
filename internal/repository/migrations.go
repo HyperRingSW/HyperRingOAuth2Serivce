@@ -39,16 +39,42 @@ func RunMigrations(db *gorm.DB) error {
 		}
 	}
 
-	if db.Migrator().HasColumn(&models.DeviceDescription{}, "image_url") {
-		if err := db.Migrator().DropColumn(&models.DeviceDescription{}, "image_url"); err != nil {
-			return fmt.Errorf("failed drop column image_url: %w", err)
+	if db.Migrator().HasColumn(&models.Ring{}, "image_url") || db.Migrator().HasColumn(&models.Ring{}, "site_url") {
+		updateQuery := `
+			UPDATE device_descriptions d
+			SET image_url = r.image_url,
+				site_url = r.site_url
+			FROM rings r
+			WHERE d.ring_id = r.id
+			  AND (r.image_url IS NOT NULL OR r.site_url IS NOT NULL)
+		`
+		if err := db.Exec(updateQuery).Error; err != nil {
+			return fmt.Errorf("failed to update device_descriptions from rings: %w", err)
 		}
-	}
 
-	if db.Migrator().HasColumn(&models.DeviceDescription{}, "site_url") {
-		if err := db.Migrator().DropColumn(&models.DeviceDescription{}, "site_url"); err != nil {
-			return fmt.Errorf("failed drop column site_url: %w", err)
+		insertQuery := `
+			INSERT INTO device_descriptions (ring_id, image_url, site_url)
+			SELECT r.id, r.image_url, r.site_url
+			FROM rings r
+			WHERE (r.image_url IS NOT NULL OR r.site_url IS NOT NULL)
+			  AND NOT EXISTS (
+				SELECT 1 FROM device_descriptions d WHERE d.ring_id = r.id
+			)
+		`
+		if err := db.Exec(insertQuery).Error; err != nil {
+			return fmt.Errorf("failed to insert into device_descriptions from rings: %w", err)
 		}
+
+		/*if db.Migrator().HasColumn(&models.Ring{}, "image_url") {
+			if err := db.Migrator().DropColumn(&models.Ring{}, "image_url"); err != nil {
+				return fmt.Errorf("failed drop column image_url from rings: %w", err)
+			}
+		}
+		if db.Migrator().HasColumn(&models.Ring{}, "site_url") {
+			if err := db.Migrator().DropColumn(&models.Ring{}, "site_url"); err != nil {
+				return fmt.Errorf("failed drop column site_url from rings: %w", err)
+			}
+		}*/
 	}
 
 	if !db.Migrator().HasColumn(&models.Token{}, "device_uuid") {
@@ -61,12 +87,12 @@ func RunMigrations(db *gorm.DB) error {
 		}
 	}
 
-	updateQuery := fmt.Sprintf(`
+	updateTokenQuery := fmt.Sprintf(`
 			UPDATE tokens
 			SET device_uuid = '%s'
 			WHERE device_uuid IS NULL OR device_uuid = '%s'
 		`, models.DefaultUUID, models.DefaultUUID)
-	if err := db.Exec(updateQuery).Error; err != nil {
+	if err := db.Exec(updateTokenQuery).Error; err != nil {
 		return fmt.Errorf("failed to update device_uuid for existing tokens: %w", err)
 	}
 

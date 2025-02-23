@@ -22,6 +22,10 @@ func RegisterRoutes(router *mux.Router, handler dependency.Handler, middlewares 
 		handler.AuthHandler().LogoutHandler(w, r)
 	})).Methods("POST")
 
+	router.HandleFunc("/user/remove", middlewares.AuthMiddleware(func(w http.ResponseWriter, r *http.Request) {
+		handler.AuthHandler().RemoveHandler(w, r)
+	})).Methods("POST")
+
 	//User Management
 	router.HandleFunc("/user/profile", middlewares.AuthMiddleware(func(w http.ResponseWriter, r *http.Request) {
 		handler.UserHandler().GetUserProfile(w, r)

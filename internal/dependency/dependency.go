@@ -47,6 +47,7 @@ type AuthHandler interface {
 	AuthUserHandler(w http.ResponseWriter, r *http.Request, provider string)
 	RefreshTokenHandler(w http.ResponseWriter, r *http.Request)
 	LogoutHandler(w http.ResponseWriter, r *http.Request)
+	RemoveHandler(w http.ResponseWriter, r *http.Request)
 }
 
 type UserHandler interface {

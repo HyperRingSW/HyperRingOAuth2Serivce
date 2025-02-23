@@ -440,6 +440,27 @@ func (h *Handler) LogoutHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
+func (h *Handler) RemoveHandler(w http.ResponseWriter, r *http.Request) {
+	util.LogInfo("RemoveHandler")
+	userID, ok := r.Context().Value("userID").(uint)
+	if !ok {
+		util.LogError(errors.New("Invalid user ID in context"))
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	err := h.repo.UserRepository().DeleteUser(userID)
+	if err != nil {
+		util.LogInfo("error removing user")
+		util.LogError(err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
+	return
+
+}
+
 // getProviderConfig
 func getProviderConfig(provider string, cfg config.Authorization) (providers.ProviderConfig, error) {
 	switch provider {

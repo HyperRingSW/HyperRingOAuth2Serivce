@@ -66,5 +66,28 @@ func (repo *PostgresDB) UpdateUser(userID uint, updates map[string]interface{}) 
 
 // DeleteUser
 func (repo *PostgresDB) DeleteUser(userID uint) error {
-	return repo.db.Delete(&models.UserAuth{}, userID).Error
+	tx := repo.db.Begin()
+	if tx.Error != nil {
+		return tx.Error
+	}
+
+	// Удаляем токены, связанные с пользователем
+	if err := tx.Where("user_id = ?", userID).Delete(&models.Token{}).Error; err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	// Удаляем связи пользователя с кольцами (если они имеются)
+	if err := tx.Where("user_id = ?", userID).Delete(&models.UserRing{}).Error; err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	// Удаляем саму запись пользователя
+	if err := tx.Delete(&models.UserAuth{}, userID).Error; err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	return tx.Commit().Error
 }

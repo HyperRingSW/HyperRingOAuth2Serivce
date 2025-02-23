@@ -13,8 +13,6 @@ type RingResponse struct {
 	Name              string                    `json:"name"`
 	UserNamed         string                    `json:"userName"`
 	Description       string                    `json:"description"`
-	ImageURL          string                    `json:"imageUrl"`
-	SiteURL           string                    `json:"siteUrl"`
 	Services          []string                  `json:"services"`
 	DeviceDescription DeviceDescriptionResponse `json:"deviceDescription"`
 }
@@ -25,6 +23,8 @@ type DeviceDescriptionResponse struct {
 	Name        string            `json:"name"`
 	Description string            `json:"description"`
 	Batch       RingBatchResponse `json:"batch"`
+	ImageURL    string            `json:"imageUrl"`
+	SiteURL     string            `json:"siteUrl"`
 }
 
 type RingBatchResponse struct {

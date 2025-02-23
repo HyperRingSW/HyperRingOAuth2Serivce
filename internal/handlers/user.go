@@ -61,8 +61,6 @@ func (h *Handler) GetUserProfile(w http.ResponseWriter, r *http.Request) {
 			Name:        ringDB.Name,
 			UserNamed:   ringDB.UserNamed,
 			Description: ringDB.Description,
-			ImageURL:    ringDB.ImageURL,
-			SiteURL:     ringDB.SiteURL,
 			Services:    service,
 			DeviceDescription: models.DeviceDescriptionResponse{
 				CIN:         ringDB.DeviceDescription.CIN,
@@ -74,6 +72,8 @@ func (h *Handler) GetUserProfile(w http.ResponseWriter, r *http.Request) {
 					IsUser:     ringDB.DeviceDescription.Batch.IsUser,
 					IsUserName: ringDB.DeviceDescription.Batch.IsUserName,
 				},
+				ImageURL: ringDB.DeviceDescription.ImageURL,
+				SiteURL:  ringDB.DeviceDescription.SiteURL,
 			},
 		})
 	}
@@ -86,7 +86,7 @@ func (h *Handler) GetUserProfile(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(models.UserProfileGETResponse{
-		UserId: 0,
+		UserId: int(userID),
 		Name:   user.Name,
 		Email:  user.Email,
 		Rings:  rings,
