@@ -81,6 +81,7 @@ func (h *Handler) AuthUserHandler(w http.ResponseWriter, r *http.Request, provid
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
+
 	default:
 		util.LogError(errors.New("provider not supported"))
 		w.WriteHeader(http.StatusNotFound)

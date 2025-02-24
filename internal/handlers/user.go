@@ -36,6 +36,7 @@ func (h *Handler) GetUserProfile(w http.ResponseWriter, r *http.Request) {
 
 	userRings, err := h.repo.UserRingRepository().GetUserRing(user.ID)
 	if err != nil {
+		util.LogInfo("GetUserRing")
 		util.LogError(err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return

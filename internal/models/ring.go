@@ -40,8 +40,8 @@ type DeviceDescription struct {
 	Name        string    `json:"name"`
 	Description string    `json:"description,omitempty"`
 	Batch       RingBatch `json:"batch" gorm:"foreignKey:DeviceDescriptionID;constraint:OnUpdate:CASCADE,OnDelete:CASCADE;"`
-	ImageURL    string    `json:"image_url,omitempty"`
-	SiteURL     string    `json:"site_url,omitempty"`
+	ImageURL    string    `json:"imageUrl,omitempty"`
+	SiteURL     string    `json:"siteUrl,omitempty"`
 }
 
 // RingBatch
