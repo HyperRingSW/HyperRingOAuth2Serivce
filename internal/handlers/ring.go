@@ -121,6 +121,12 @@ func (h *Handler) UnlinkRingHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if body.RingId == "" {
+		util.LogInfo(fmt.Sprintf("missing ring id, userID: %s ", userID))
+		util.LogError(errors.New("missing ring id"))
+		w.WriteHeader(http.StatusBadRequest)
+	}
+
 	if err := h.repo.UserRingRepository().DeleteUserRing(userID, body.RingId); err != nil {
 		util.LogError(err)
 		w.WriteHeader(http.StatusInternalServerError)
