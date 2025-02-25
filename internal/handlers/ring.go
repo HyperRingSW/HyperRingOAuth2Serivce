@@ -29,9 +29,12 @@ func (h *Handler) AttachRingHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	util.LogInfo(fmt.Sprintf("AttachRingHandler called with userID %d", userID))
+
 	var ring models.Ring
 	// Decode JSON to Ring model
 	if err := json.NewDecoder(r.Body).Decode(&ring); err != nil {
+		util.LogInfo("Failed to decode ring body")
 		util.LogError(err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -48,6 +51,7 @@ func (h *Handler) AttachRingHandler(w http.ResponseWriter, r *http.Request) {
 
 	_, err := h.repo.RingRepository().SaveRing(&ring)
 	if err != nil {
+		util.LogInfo("failed to save ring in repo")
 		util.LogError(err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -60,6 +64,7 @@ func (h *Handler) AttachRingHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	err = h.repo.UserRingRepository().SaveUserRing(&userRing)
 	if err != nil {
+		util.LogInfo("failed to save user-ring in repo")
 		util.LogError(err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
