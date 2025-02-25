@@ -104,5 +104,20 @@ func RunMigrations(db *gorm.DB) error {
 		return fmt.Errorf("failed to set NOT NULL on device_uuid in tokens table: %w", err)
 	}
 
+	if err := db.Exec(`DELETE FROM ring_services WHERE ring_id NOT IN (SELECT ring_id FROM user_rings);`).Error; err != nil {
+		return fmt.Errorf("failed DELETE FROM ring_services: %w", err)
+	}
+
+	if err := db.Exec(`DELETE FROM device_descriptions WHERE ring_id NOT IN (SELECT ring_id FROM user_rings);`).Error; err != nil {
+		return fmt.Errorf("failed DELETE FROM device_descriptions: %w", err)
+	}
+
+	if err := db.Exec(`DELETE FROM ring_batches WHERE device_description_id IN (SELECT id FROM device_descriptions WHERE ring_id NOT IN (SELECT ring_id FROM user_rings));`).Error; err != nil {
+		return fmt.Errorf("failed DELETE FROM ring_batches: %w", err)
+	}
+
+	if err := db.Exec(`DELETE FROM rings WHERE id NOT IN (SELECT ring_id FROM user_rings);`).Error; err != nil {
+		return fmt.Errorf("failed DELETE FROM rings: %w", err)
+	}
 	return nil
 }

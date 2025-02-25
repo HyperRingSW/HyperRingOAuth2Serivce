@@ -71,19 +71,30 @@ func (repo *PostgresDB) DeleteUser(userID uint) error {
 		return tx.Error
 	}
 
-	// Удаляем токены, связанные с пользователем
+	ur, err := repo.UserRingRepository().GetUserRing(userID)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	for _, u := range ur {
+		err = repo.RingRepository().DeleteRing(u.RingID)
+		if err != nil {
+			tx.Rollback()
+			return err
+		}
+	}
+
 	if err := tx.Where("user_id = ?", userID).Delete(&models.Token{}).Error; err != nil {
 		tx.Rollback()
 		return err
 	}
 
-	// Удаляем связи пользователя с кольцами (если они имеются)
 	if err := tx.Where("user_id = ?", userID).Delete(&models.UserRing{}).Error; err != nil {
 		tx.Rollback()
 		return err
 	}
 
-	// Удаляем саму запись пользователя
 	if err := tx.Delete(&models.UserAuth{}, userID).Error; err != nil {
 		tx.Rollback()
 		return err
