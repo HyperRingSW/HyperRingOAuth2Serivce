@@ -34,6 +34,7 @@ func (repo *PostgresDB) CreateOrUpdateToken(token models.Token) (*models.Token, 
 		if err != nil {
 			return nil, err
 		}
+		token.RefreshToken = enc
 		encryptedRefreshToken = enc
 	}
 
