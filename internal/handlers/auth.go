@@ -215,7 +215,7 @@ func (h *Handler) RefreshTokenHandler(w http.ResponseWriter, r *http.Request) {
 	if token.RefreshToken != "" {
 		decryptRefresh, err := util.Decrypt(token.RefreshToken)
 		if err != nil {
-			util.LogInfo("error decrypting refresh token")
+			util.LogInfo(fmt.Sprintf("error decrypting refresh token: %s", token.RefreshToken))
 			util.LogError(err)
 			w.WriteHeader(http.StatusInternalServerError)
 			return
