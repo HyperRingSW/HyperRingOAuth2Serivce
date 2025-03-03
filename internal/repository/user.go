@@ -2,8 +2,10 @@ package repository
 
 import (
 	"errors"
+	"fmt"
 	"oauth2-server/internal/dependency"
 	"oauth2-server/internal/models"
+	"oauth2-server/internal/util"
 	"time"
 )
 
@@ -96,6 +98,113 @@ func (repo *PostgresDB) DeleteUser(userID uint) error {
 	}
 
 	if err := tx.Delete(&models.UserAuth{}, userID).Error; err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	return tx.Commit().Error
+}
+
+func (repo *PostgresDB) AnonymizeUserData(userID uint) error {
+	tx := repo.db.Begin()
+	if tx.Error != nil {
+		return tx.Error
+	}
+
+	ur, err := repo.UserRingRepository().GetUserRing(userID)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	for _, u := range ur {
+		hashName := util.GetHash(u.RingID + "_name")
+		hashUserNamed := util.GetHash(u.RingID + "_userNamed")
+		hashDescription := util.GetHash(u.RingID + "_description")
+		hashImageURL := util.GetHash(u.RingID + "_image_url")
+		hashSiteURL := util.GetHash(u.RingID + "_site_url")
+
+		if err := tx.Model(&models.Ring{}).
+			Where("id = ?", u.RingID).
+			Updates(map[string]interface{}{
+				"name":        hashName,
+				"user_named":  hashUserNamed,
+				"description": hashDescription,
+				"image_url":   hashImageURL,
+				"site_url":    hashSiteURL,
+			}).Error; err != nil {
+			tx.Rollback()
+			return err
+		}
+
+		hashCIN := util.GetHash(u.RingID + "_cin")
+		hashIIN := util.GetHash(u.RingID + "_iin")
+		hashDDName := util.GetHash(u.RingID + "_device_name")
+		hashDDDescription := util.GetHash(u.RingID + "_device_description")
+		hashDDImageURL := util.GetHash(u.RingID + "_device_image_url")
+		hashDDSiteURL := util.GetHash(u.RingID + "_device_site_url")
+
+		if err := tx.Model(&models.DeviceDescription{}).
+			Where("ring_id = ?", u.RingID).
+			Updates(map[string]interface{}{
+				"cin":         hashCIN,
+				"iin":         hashIIN,
+				"name":        hashDDName,
+				"description": hashDDDescription,
+				"image_url":   hashDDImageURL,
+				"site_url":    hashDDSiteURL,
+			}).Error; err != nil {
+			tx.Rollback()
+			return err
+		}
+
+		var deviceDesc models.DeviceDescription
+		if err := tx.Where("ring_id = ?", u.RingID).First(&deviceDesc).Error; err == nil {
+			newDeviceDescription := util.GetHash(fmt.Sprintf("%d_isUserName", deviceDesc.ID))
+			if err := tx.Model(&models.RingBatch{}).
+				Where("device_description_id = ?", deviceDesc.ID).
+				Updates(map[string]interface{}{
+					"is_user_name": newDeviceDescription,
+				}).Error; err != nil {
+				tx.Rollback()
+				return err
+			}
+		}
+	}
+
+	var tokens []models.Token
+	if err := tx.Where("user_id = ?", userID).Find(&tokens).Error; err != nil {
+		tx.Rollback()
+		return err
+	}
+	for _, token := range tokens {
+		newAccessToken := util.GetHash(fmt.Sprintf("%d_accessToken", token.ID))
+		newRefreshToken := util.GetHash(fmt.Sprintf("%d_refreshToken", token.ID))
+		newIDToken := util.GetHash(fmt.Sprintf("%d_idToken", token.ID))
+		newData := util.GetHash(fmt.Sprintf("%d_data", token.ID))
+		if err := tx.Model(&models.Token{}).
+			Where("id = ?", token.ID).
+			Updates(map[string]interface{}{
+				"access_token":  newAccessToken,
+				"refresh_token": newRefreshToken,
+				"id_token":      newIDToken,
+				"data":          newData,
+			}).Error; err != nil {
+			tx.Rollback()
+			return err
+		}
+	}
+
+	newEmail := util.GetHash(fmt.Sprintf("%d_email", userID))
+	newName := util.GetHash(fmt.Sprintf("%d_name", userID))
+	newUserData := util.GetHash(fmt.Sprintf("%d_data", userID))
+	if err := tx.Model(&models.UserAuth{}).
+		Where("id = ?", userID).
+		Updates(map[string]interface{}{
+			"email": newEmail,
+			"name":  newName,
+			"data":  newUserData,
+		}).Error; err != nil {
 		tx.Rollback()
 		return err
 	}

@@ -450,13 +450,22 @@ func (h *Handler) RemoveHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err := h.repo.UserRepository().DeleteUser(userID)
+	/*err := h.repo.UserRepository().DeleteUser(userID)
+	if err != nil {
+		util.LogInfo("error removing user")
+		util.LogError(err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}*/
+
+	err := h.repo.UserRepository().AnonymizeUserData(userID)
 	if err != nil {
 		util.LogInfo("error removing user")
 		util.LogError(err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
+
 	w.WriteHeader(http.StatusOK)
 	return
 }

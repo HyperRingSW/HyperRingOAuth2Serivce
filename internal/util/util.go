@@ -2,11 +2,14 @@ package util
 
 import (
 	"crypto/ecdsa"
+	"crypto/sha256"
 	"crypto/x509"
 	"encoding/json"
 	"encoding/pem"
 	"errors"
+	"fmt"
 	"io/ioutil"
+	"time"
 )
 
 func UserInfoToJSON(data interface{}) ([]byte, error) {
@@ -38,4 +41,10 @@ func LoadECDSAPrivateKeyFromPEM(path string) (*ecdsa.PrivateKey, error) {
 		return nil, errors.New("key is not of type *ecdsa.PrivateKey")
 	}
 	return ecKey, nil
+}
+
+func GetHash(input string) string {
+	data := fmt.Sprintf("%s_%d", input, time.Now().UnixNano())
+	sum := sha256.Sum256([]byte(data))
+	return fmt.Sprintf("deleted_%x", sum)
 }
