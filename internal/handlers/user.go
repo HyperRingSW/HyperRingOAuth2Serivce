@@ -165,76 +165,81 @@ func (h *Handler) ExportUserData(w http.ResponseWriter, r *http.Request) {
 	}
 
 	responseTokens := make([]models.UserDataExportTokenResponse, 0)
-	var dataJSON []byte
-	if len(tokens) > 0 {
-		for _, token := range tokens {
-			if token.AccessToken != "" {
-				decryptAccess, err := util.Decrypt(token.AccessToken)
-				if err != nil {
-					util.LogInfo("error decrypting access token")
-					util.LogError(err)
-					w.WriteHeader(http.StatusInternalServerError)
-					return
-				}
-				token.AccessToken = decryptAccess
+	for _, token := range tokens {
+		if token.AccessToken != "" {
+			decryptAccess, err := util.Decrypt(token.AccessToken)
+			if err != nil {
+				util.LogInfo("error decrypting access token")
+				util.LogError(err)
+				w.WriteHeader(http.StatusInternalServerError)
+				return
 			}
-
-			if token.RefreshToken != "" {
-				decryptRefresh, err := util.Decrypt(token.RefreshToken)
-				if err != nil {
-					util.LogInfo(fmt.Sprintf("error decrypting refresh token: %s", token.RefreshToken))
-					util.LogError(err)
-					w.WriteHeader(http.StatusInternalServerError)
-					return
-				}
-				token.RefreshToken = decryptRefresh
-			}
-
-			if token.IDToken != "" {
-				decryptIDToken, err := util.Decrypt(token.IDToken)
-				if err != nil {
-					util.LogInfo("error decrypting ID token")
-					util.LogError(err)
-					w.WriteHeader(http.StatusInternalServerError)
-					return
-				}
-				token.IDToken = decryptIDToken
-			}
-
-			if token.Data != "" {
-				decryptData, err := util.Decrypt(token.Data)
-				if err != nil {
-					util.LogInfo("error decrypting ID token")
-					util.LogError(err)
-					w.WriteHeader(http.StatusInternalServerError)
-					return
-				}
-
-				dataJSON = json.RawMessage(decryptData)
-
-				token.Data = decryptData
-			}
-
-			responseTokens = append(responseTokens, models.UserDataExportTokenResponse{
-				Provider:     token.Provider,
-				IdToken:      token.IDToken,
-				AccessToken:  token.AccessToken,
-				RefreshToken: token.RefreshToken,
-				ExpirationIn: token.ExpirationIn,
-				ExpiresAt:    token.ExpiresAt.Unix(),
-				Data:         dataJSON,
-				UpdatedAt:    token.UpdatedAt.Unix(),
-			})
+			token.AccessToken = decryptAccess
 		}
+
+		if token.RefreshToken != "" {
+			decryptRefresh, err := util.Decrypt(token.RefreshToken)
+			if err != nil {
+				util.LogInfo(fmt.Sprintf("error decrypting refresh token: %s", token.RefreshToken))
+				util.LogError(err)
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+			token.RefreshToken = decryptRefresh
+		}
+
+		if token.IDToken != "" {
+			decryptIDToken, err := util.Decrypt(token.IDToken)
+			if err != nil {
+				util.LogInfo("error decrypting ID token")
+				util.LogError(err)
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+			token.IDToken = decryptIDToken
+		}
+
+		// Обрабатываем поле Data как вложенный JSON
+		var tokenData json.RawMessage
+		if token.Data != "" {
+			decryptData, err := util.Decrypt(token.Data)
+			if err != nil {
+				util.LogInfo("error decrypting token data")
+				util.LogError(err)
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+			tokenData = json.RawMessage(decryptData)
+		}
+
+		responseTokens = append(responseTokens, models.UserDataExportTokenResponse{
+			Provider:     token.Provider,
+			IdToken:      token.IDToken,
+			AccessToken:  token.AccessToken,
+			RefreshToken: token.RefreshToken,
+			ExpirationIn: token.ExpirationIn,
+			ExpiresAt:    token.ExpiresAt.Unix(),
+			Data:         tokenData,
+			UpdatedAt:    token.UpdatedAt.Unix(),
+		})
 	}
 
 	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Content-Disposition", "attachment; filename=\"export.json\"")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(models.UserDataExportResponse{
+
+	err = json.NewEncoder(w).Encode(models.UserDataExportResponse{
 		UserId: int(userID),
 		Name:   user.Name,
 		Email:  user.Email,
 		Rings:  rings,
 		Tokens: responseTokens,
 	})
+	if err != nil {
+		util.LogInfo("ExportUserData")
+		util.LogError(err)
+		w.WriteHeader(http.StatusInternalServerError)
+	}
+
+	return
 }
