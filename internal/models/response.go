@@ -1,5 +1,7 @@
 package models
 
+import "encoding/json"
+
 type UserProfileGETResponse struct {
 	UserId int            `json:"userId"`
 	Name   string         `json:"name"`
@@ -17,14 +19,14 @@ type UserDataExportResponse struct {
 }
 
 type UserDataExportTokenResponse struct {
-	Provider     string `json:"provider"`
-	IdToken      string `json:"idToken"`
-	AccessToken  string `json:"access_token"`
-	RefreshToken string `json:"refresh_token"`
-	ExpirationIn int    `json:"expirationIn"`
-	ExpiresAt    int64  `json:"expiresAt"`
-	Data         string `json:"data"`
-	UpdatedAt    int64  `json:"updatedAt"`
+	Provider     string          `json:"provider"`
+	IdToken      string          `json:"idToken"`
+	AccessToken  string          `json:"access_token"`
+	RefreshToken string          `json:"refresh_token"`
+	ExpirationIn int             `json:"expirationIn"`
+	ExpiresAt    int64           `json:"expiresAt"`
+	Data         json.RawMessage `json:"data"`
+	UpdatedAt    int64           `json:"updatedAt"`
 }
 
 type RingResponse struct {

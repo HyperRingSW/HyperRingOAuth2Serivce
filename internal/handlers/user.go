@@ -165,6 +165,7 @@ func (h *Handler) ExportUserData(w http.ResponseWriter, r *http.Request) {
 	}
 
 	responseTokens := make([]models.UserDataExportTokenResponse, 0)
+	var dataJSON []byte
 	if len(tokens) > 0 {
 		for _, token := range tokens {
 			if token.AccessToken != "" {
@@ -208,7 +209,12 @@ func (h *Handler) ExportUserData(w http.ResponseWriter, r *http.Request) {
 					w.WriteHeader(http.StatusInternalServerError)
 					return
 				}
+
+				dataJSON = json.RawMessage(decryptData)
+
 				token.Data = decryptData
+
+				fmt.Println(decryptData)
 			}
 
 			responseTokens = append(responseTokens, models.UserDataExportTokenResponse{
@@ -218,7 +224,7 @@ func (h *Handler) ExportUserData(w http.ResponseWriter, r *http.Request) {
 				RefreshToken: token.RefreshToken,
 				ExpirationIn: token.ExpirationIn,
 				ExpiresAt:    token.ExpiresAt.Unix(),
-				Data:         token.Data,
+				Data:         dataJSON,
 				UpdatedAt:    token.UpdatedAt.Unix(),
 			})
 		}
