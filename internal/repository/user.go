@@ -122,8 +122,6 @@ func (repo *PostgresDB) AnonymizeUserData(phrase string, userID uint) error {
 		hashName := util.GetHash(phrase, u.RingID+"_name")
 		hashUserNamed := util.GetHash(phrase, u.RingID+"_userNamed")
 		hashDescription := util.GetHash(phrase, u.RingID+"_description")
-		hashImageURL := util.GetHash(phrase, u.RingID+"_image_url")
-		hashSiteURL := util.GetHash(phrase, u.RingID+"_site_url")
 
 		if err := tx.Model(&models.Ring{}).
 			Where("id = ?", u.RingID).
@@ -131,8 +129,6 @@ func (repo *PostgresDB) AnonymizeUserData(phrase string, userID uint) error {
 				"name":        hashName,
 				"user_named":  hashUserNamed,
 				"description": hashDescription,
-				"image_url":   hashImageURL,
-				"site_url":    hashSiteURL,
 			}).Error; err != nil {
 			tx.Rollback()
 			return err
