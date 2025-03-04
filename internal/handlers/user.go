@@ -213,8 +213,6 @@ func (h *Handler) ExportUserData(w http.ResponseWriter, r *http.Request) {
 				dataJSON = json.RawMessage(decryptData)
 
 				token.Data = decryptData
-
-				fmt.Println(decryptData)
 			}
 
 			responseTokens = append(responseTokens, models.UserDataExportTokenResponse{
