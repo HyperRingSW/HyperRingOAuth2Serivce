@@ -43,8 +43,8 @@ func LoadECDSAPrivateKeyFromPEM(path string) (*ecdsa.PrivateKey, error) {
 	return ecKey, nil
 }
 
-func GetHash(input string) string {
+func GetHash(phrase, input string) string {
 	data := fmt.Sprintf("%s_%d", input, time.Now().UnixNano())
 	sum := sha256.Sum256([]byte(data))
-	return fmt.Sprintf("deleted_%x", sum)
+	return fmt.Sprintf("%x_%x", phrase, sum)
 }

@@ -450,19 +450,33 @@ func (h *Handler) RemoveHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	/*err := h.repo.UserRepository().DeleteUser(userID)
-	if err != nil {
-		util.LogInfo("error removing user")
-		util.LogError(err)
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}*/
+	fmt.Println(h.cfg.App.DeleteMode)
 
-	err := h.repo.UserRepository().AnonymizeUserData(userID)
-	if err != nil {
-		util.LogInfo("error removing user")
-		util.LogError(err)
-		w.WriteHeader(http.StatusInternalServerError)
+	if h.cfg.App.DeleteMode == "" {
+		h.cfg.App.DeleteMode = config.DeleteModeSoft
+	}
+
+	switch h.cfg.App.DeleteMode {
+	case config.DeleteModeSoft:
+		err := h.repo.UserRepository().AnonymizeUserData(h.cfg.App.AnonymizePhrase, userID)
+		if err != nil {
+			util.LogInfo("error removing user")
+			util.LogError(err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+	case config.DeleteModeHard:
+		err := h.repo.UserRepository().DeleteUser(userID)
+		if err != nil {
+			util.LogInfo("error removing user")
+			util.LogError(err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+	default:
+		util.LogError(errors.New("Unsupported delete mode"))
+		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 

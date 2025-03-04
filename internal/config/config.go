@@ -7,12 +7,20 @@ import (
 	"os"
 )
 
+const (
+	DeleteModeSoft         = "soft"
+	DeleteModeHard         = "hard"
+	AnonymizePhraseDefault = "delete"
+)
+
 type AppConfig struct {
 	Addr              string `env:"APP_ADDR" env-default:"localhost:8090"`
 	ExpiresTime       int    `env:"EXPIRES_TIME" env-default:"60"`
 	CustomExpiresTime bool   `env:"CUSTOM_EXPIRES_TIME" env-default:"false"`
 	DemoEmail         string `env:"DEMO_EMAIL" env-default:"admin@example.com"`
 	DemoMode          bool   `env:"DEMO_MODE" env-default:"false"`
+	AnonymizePhrase   string `env:"ANONYMIZE_PHRASE" env-default:"delete"`
+	DeleteMode        string `env:"DELETE_MODE" env-default:"soft"`
 }
 
 type OAuht2Config struct {
@@ -88,6 +96,14 @@ func LoadConfig() (*Config, error) {
 	}
 	if err := env.Parse(&cfg); err != nil {
 		return nil, fmt.Errorf("failed to parse environment variables: %w", err)
+	}
+
+	if cfg.App.DeleteMode == "" {
+		cfg.App.DeleteMode = DeleteModeSoft
+	}
+
+	if cfg.App.AnonymizePhrase == "" {
+		cfg.App.AnonymizePhrase = AnonymizePhraseDefault
 	}
 
 	return &cfg, nil

@@ -11,7 +11,7 @@ type UserRepository interface {
 	GetUserByID(userID uint) *models.UserAuth
 	UpdateUser(userID uint, updates map[string]interface{}) error
 	DeleteUser(userID uint) error
-	AnonymizeUserData(userID uint) error
+	AnonymizeUserData(phrase string, userID uint) error
 }
 
 type TokenRepository interface {

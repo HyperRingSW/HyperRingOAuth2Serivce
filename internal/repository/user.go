@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"oauth2-server/internal/dependency"
@@ -105,7 +106,7 @@ func (repo *PostgresDB) DeleteUser(userID uint) error {
 	return tx.Commit().Error
 }
 
-func (repo *PostgresDB) AnonymizeUserData(userID uint) error {
+func (repo *PostgresDB) AnonymizeUserData(phrase string, userID uint) error {
 	tx := repo.db.Begin()
 	if tx.Error != nil {
 		return tx.Error
@@ -118,11 +119,11 @@ func (repo *PostgresDB) AnonymizeUserData(userID uint) error {
 	}
 
 	for _, u := range ur {
-		hashName := util.GetHash(u.RingID + "_name")
-		hashUserNamed := util.GetHash(u.RingID + "_userNamed")
-		hashDescription := util.GetHash(u.RingID + "_description")
-		hashImageURL := util.GetHash(u.RingID + "_image_url")
-		hashSiteURL := util.GetHash(u.RingID + "_site_url")
+		hashName := util.GetHash(phrase, u.RingID+"_name")
+		hashUserNamed := util.GetHash(phrase, u.RingID+"_userNamed")
+		hashDescription := util.GetHash(phrase, u.RingID+"_description")
+		hashImageURL := util.GetHash(phrase, u.RingID+"_image_url")
+		hashSiteURL := util.GetHash(phrase, u.RingID+"_site_url")
 
 		if err := tx.Model(&models.Ring{}).
 			Where("id = ?", u.RingID).
@@ -137,12 +138,12 @@ func (repo *PostgresDB) AnonymizeUserData(userID uint) error {
 			return err
 		}
 
-		hashCIN := util.GetHash(u.RingID + "_cin")
-		hashIIN := util.GetHash(u.RingID + "_iin")
-		hashDDName := util.GetHash(u.RingID + "_device_name")
-		hashDDDescription := util.GetHash(u.RingID + "_device_description")
-		hashDDImageURL := util.GetHash(u.RingID + "_device_image_url")
-		hashDDSiteURL := util.GetHash(u.RingID + "_device_site_url")
+		hashCIN := util.GetHash(phrase, u.RingID+"_cin")
+		hashIIN := util.GetHash(phrase, u.RingID+"_iin")
+		hashDDName := util.GetHash(phrase, u.RingID+"_device_name")
+		hashDDDescription := util.GetHash(phrase, u.RingID+"_device_description")
+		hashDDImageURL := util.GetHash(phrase, u.RingID+"_device_image_url")
+		hashDDSiteURL := util.GetHash(phrase, u.RingID+"_device_site_url")
 
 		if err := tx.Model(&models.DeviceDescription{}).
 			Where("ring_id = ?", u.RingID).
@@ -160,7 +161,7 @@ func (repo *PostgresDB) AnonymizeUserData(userID uint) error {
 
 		var deviceDesc models.DeviceDescription
 		if err := tx.Where("ring_id = ?", u.RingID).First(&deviceDesc).Error; err == nil {
-			newDeviceDescription := util.GetHash(fmt.Sprintf("%d_isUserName", deviceDesc.ID))
+			newDeviceDescription := util.GetHash(phrase, fmt.Sprintf("%d_isUserName", deviceDesc.ID))
 			if err := tx.Model(&models.RingBatch{}).
 				Where("device_description_id = ?", deviceDesc.ID).
 				Updates(map[string]interface{}{
@@ -178,10 +179,10 @@ func (repo *PostgresDB) AnonymizeUserData(userID uint) error {
 		return err
 	}
 	for _, token := range tokens {
-		newAccessToken := util.GetHash(fmt.Sprintf("%d_accessToken", token.ID))
-		newRefreshToken := util.GetHash(fmt.Sprintf("%d_refreshToken", token.ID))
-		newIDToken := util.GetHash(fmt.Sprintf("%d_idToken", token.ID))
-		newData := util.GetHash(fmt.Sprintf("%d_data", token.ID))
+		newAccessToken := util.GetHash(phrase, fmt.Sprintf("%d_accessToken", token.ID))
+		newRefreshToken := util.GetHash(phrase, fmt.Sprintf("%d_refreshToken", token.ID))
+		newIDToken := util.GetHash(phrase, fmt.Sprintf("%d_idToken", token.ID))
+		newData := util.GetHash(phrase, fmt.Sprintf("%d_data", token.ID))
 		if err := tx.Model(&models.Token{}).
 			Where("id = ?", token.ID).
 			Updates(map[string]interface{}{
@@ -195,15 +196,21 @@ func (repo *PostgresDB) AnonymizeUserData(userID uint) error {
 		}
 	}
 
-	newEmail := util.GetHash(fmt.Sprintf("%d_email", userID))
-	newName := util.GetHash(fmt.Sprintf("%d_name", userID))
-	newUserData := util.GetHash(fmt.Sprintf("%d_data", userID))
+	newEmail := util.GetHash(phrase, fmt.Sprintf("%d_email", userID))
+	newName := util.GetHash(phrase, fmt.Sprintf("%d_name", userID))
+	newUserData := util.GetHash(phrase, fmt.Sprintf("%d_data", userID))
+
+	encodedUserData, err := json.Marshal(newUserData)
+	if err != nil {
+		return err
+	}
+
 	if err := tx.Model(&models.UserAuth{}).
 		Where("id = ?", userID).
 		Updates(map[string]interface{}{
 			"email": newEmail,
 			"name":  newName,
-			"data":  newUserData,
+			"data":  string(encodedUserData),
 		}).Error; err != nil {
 		tx.Rollback()
 		return err
