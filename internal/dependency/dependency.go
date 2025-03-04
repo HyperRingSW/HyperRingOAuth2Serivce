@@ -20,6 +20,7 @@ type TokenRepository interface {
 	InvalidateAccessToken(accessToken string, deviceUUID string) error
 	InvalidateIdToken(idToken string, deviceUUID string) error
 	UserToken(userId uint, provider string) *models.Token
+	UserTokens(userId uint) ([]models.Token, error)
 }
 
 type RingRepository interface {
@@ -53,6 +54,7 @@ type AuthHandler interface {
 
 type UserHandler interface {
 	GetUserProfile(w http.ResponseWriter, r *http.Request)
+	ExportUserData(w http.ResponseWriter, r *http.Request)
 }
 
 type MiddleHandler interface {

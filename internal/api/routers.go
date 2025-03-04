@@ -31,6 +31,10 @@ func RegisterRoutes(router *mux.Router, handler dependency.Handler, middlewares 
 		handler.UserHandler().GetUserProfile(w, r)
 	})).Methods("GET")
 
+	router.HandleFunc("/user/data-export", middlewares.AuthMiddleware(func(w http.ResponseWriter, r *http.Request) {
+		handler.UserHandler().ExportUserData(w, r)
+	})).Methods("GET")
+
 	//Attach User Ring
 	router.HandleFunc("/user/ring", middlewares.AuthMiddleware(func(w http.ResponseWriter, r *http.Request) {
 		handler.RingHandler().AttachRingHandler(w, r)

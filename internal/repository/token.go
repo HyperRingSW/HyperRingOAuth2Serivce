@@ -164,3 +164,13 @@ func (repo *PostgresDB) UserToken(userId uint, provider string) *models.Token {
 
 	return nil
 }
+
+func (repo *PostgresDB) UserTokens(userId uint) ([]models.Token, error) {
+	var token []models.Token
+
+	if err := repo.db.Where("user_id = ?", userId).Find(&token).Error; err != nil {
+		return token, err
+	}
+
+	return token, nil
+}
