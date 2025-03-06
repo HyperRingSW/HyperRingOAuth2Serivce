@@ -3,6 +3,7 @@ package middleware
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"oauth2-server/internal/dependency"
 	"oauth2-server/internal/util"
@@ -36,7 +37,9 @@ func (h *Middleware) AuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
 
 		authHeader := r.Header.Get("Authorization")
 		if !strings.HasPrefix(authHeader, "Bearer ") {
+			util.LogInfo(fmt.Sprintf("authorization header format is incorrect: %s", authHeader))
 			util.LogError(errors.New("authorization header format is incorrect"))
+
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
