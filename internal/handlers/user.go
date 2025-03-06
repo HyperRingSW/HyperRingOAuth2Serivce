@@ -49,8 +49,9 @@ func (h *Handler) GetUserProfile(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			util.LogInfo("error getting ring from db")
 			util.LogError(err)
-			w.WriteHeader(http.StatusInternalServerError)
-			return
+			/*w.WriteHeader(http.StatusInternalServerError)
+			return*/
+			continue
 		}
 
 		var service []string
