@@ -119,5 +119,9 @@ func RunMigrations(db *gorm.DB) error {
 	if err := db.Exec(`DELETE FROM rings WHERE id NOT IN (SELECT ring_id FROM user_rings);`).Error; err != nil {
 		return fmt.Errorf("failed DELETE FROM rings: %w", err)
 	}
+
+	if err := db.Exec(`DELETE FROM user_rings WHERE ring_id NOT IN (SELECT id FROM rings)`).Error; err != nil {
+		return fmt.Errorf("failed DELETE FROM user_rings: %w", err)
+	}
 	return nil
 }
