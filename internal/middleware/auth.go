@@ -31,9 +31,16 @@ func (h *Middleware) MiddleHandler() dependency.MiddleHandler {
 }
 
 func (h *Middleware) AuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
-	util.LogInfo("AuthMiddleware")
 	return func(w http.ResponseWriter, r *http.Request) {
 		requestPath := r.URL.Path
+
+		logs := make(map[string]map[string]any)
+		logs["info"] = make(map[string]any)
+		logs["error"] = make(map[string]any)
+		defer func() {
+			logs["info"]["request"] = requestPath
+			util.LogInfoMap(logs)
+		}()
 
 		authHeader := r.Header.Get("Authorization")
 		if !strings.HasPrefix(authHeader, "Bearer ") {
