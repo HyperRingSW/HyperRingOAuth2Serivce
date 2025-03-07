@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"github.com/google/uuid"
 	"io"
@@ -28,71 +27,99 @@ func (h *Handler) AuthHandler() dependency.AuthHandler {
 }
 
 func (h *Handler) AuthUserHandler(w http.ResponseWriter, r *http.Request, provider string) {
-	util.LogInfo("AuthUserHandler")
+	response := models.AuthResponse{}
+	logs := make(map[string]map[string]any)
+	logs["info"] = make(map[string]any)
+	logs["error"] = make(map[string]any)
+	jwtToken := ""
+	var expiresAt time.Time
+	defer func() {
+		logs["info"]["response"] = response
+		util.LogInfoMap(logs)
+		if len(logs["error"]) == 0 {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			json.NewEncoder(w).Encode(response)
+		}
+
+		w.WriteHeader(http.StatusBadRequest)
+	}()
+	logs["info"]["handler"] = "AuthUserHandler"
+	logs["info"]["provider"] = provider
+
 	body := models.AuthBodyRequest
 
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		util.LogError(err)
-		w.WriteHeader(http.StatusBadRequest)
+		logs["error"]["bodyRequestMsg"] = err.Error()
+		logs["error"]["bodyRequest"] = body
+		//w.WriteHeader(http.StatusBadRequest)
 		return
 	}
+	logs["info"]["body"] = body
 
 	// Get provider config (URL user info, client id and etc)
 	providerConfig, err := getProviderConfig(provider, h.cfg.Authorization)
 	if err != nil {
-		util.LogError(err)
-		w.WriteHeader(http.StatusNotFound)
+		logs["error"]["providerConfigMessage"] = fmt.Sprintf("error getting provider config, provider and confing: %s, %w", provider, h.cfg.Authorization)
+		logs["error"]["providerConfigError"] = err.Error()
+		//w.WriteHeader(http.StatusNotFound)
 		return
 	}
+	logs["info"]["providerConfig"] = providerConfig
 
 	var claims map[string]interface{}
 
 	switch strings.ToLower(provider) {
 	case models.PROVIDER_GOOGLE:
 		if body.IdToken == "" {
-			util.LogError(errors.New("idToken is required"))
-			w.WriteHeader(http.StatusBadRequest)
+			logs["error"]["idTokenRequired"] = "idToken is required"
+			//w.WriteHeader(http.StatusBadRequest)
 			return
 		}
 		claims, err = providers.VerifyGoogleIDToken(body.IdToken, providerConfig)
 		if err != nil {
-			util.LogError(err)
-			w.WriteHeader(http.StatusBadRequest)
+			logs["error"]["providerConfigMessage"] = fmt.Sprintf("error getting provider config, provider and confing: %s, %w", provider, providerConfig)
+			logs["error"]["VerifyGoogleIDToken"] = err.Error()
+			//w.WriteHeader(http.StatusBadRequest)
 			return
 		}
+		logs["info"]["claims"] = claims
 
 		//Checking info on provider
 		_, err := providers.GetUserInfo(body.AccessToken, providerConfig.UserInfoURL, provider)
 		if err != nil {
-			util.LogError(err)
-			w.WriteHeader(http.StatusBadRequest)
+			logs["error"]["GetUserInfoParams"] = fmt.Sprintf("body.AccessToken, providerConfig.UserInfoURL, provider: %s, %w, %s, %s", body.AccessToken, providerConfig.UserInfoURL, provider)
+			logs["error"]["GetUserInfo"] = err.Error()
+			//w.WriteHeader(http.StatusBadRequest)
 			return
 		}
 
 	case models.PROVIDER_APPLE:
 		if body.IdToken == "" {
-			util.LogError(errors.New("idToken is required"))
-			w.WriteHeader(http.StatusBadRequest)
+			logs["error"]["idTokenRequired"] = "idToken is required"
+			//w.WriteHeader(http.StatusBadRequest)
 			return
 		}
 		claims, err = providers.VerifyAppleIdentityToken(body.IdToken, providerConfig)
 		if err != nil {
-			util.LogError(err)
-			w.WriteHeader(http.StatusBadRequest)
+			logs["error"]["VerifyAppleIdentityTokenParams"] = fmt.Sprintf("body.IdToken, providerConfig: %s, %w,", body.IdToken, providerConfig)
+			logs["error"]["VerifyAppleIdentityToken"] = err.Error()
+			//w.WriteHeader(http.StatusBadRequest)
 			return
 		}
+		logs["info"]["claims"] = claims
 
 	default:
-		util.LogError(errors.New("provider not supported"))
-		w.WriteHeader(http.StatusNotFound)
+		logs["error"]["providerConfigMessage"] = "provider not supported"
+		//w.WriteHeader(http.StatusNotFound)
 		return
 	}
 
 	// get email
 	email, ok := claims["email"].(string)
 	if !ok || email == "" {
-		util.LogError(errors.New("email is required"))
-		w.WriteHeader(http.StatusBadRequest)
+		logs["error"]["emailRequired"] = "email is required"
+		//w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 	// get user name
@@ -101,10 +128,11 @@ func (h *Handler) AuthUserHandler(w http.ResponseWriter, r *http.Request, provid
 	// Save claims JSON
 	claimsJSON, err := json.Marshal(claims)
 	if err != nil {
-		util.LogError(err)
-		w.WriteHeader(http.StatusBadRequest)
+		logs["error"]["claimsMarshalMsg"] = err.Error()
+		//w.WriteHeader(http.StatusBadRequest)
 		return
 	}
+	logs["info"]["claimsJSON"] = string(claimsJSON)
 
 	// Create user
 	userAuth := models.UserAuth{
@@ -115,12 +143,13 @@ func (h *Handler) AuthUserHandler(w http.ResponseWriter, r *http.Request, provid
 	}
 	user, err := h.repo.UserRepository().CreateOrUpdateUser(userAuth)
 	if err != nil {
-		util.LogError(err)
+		logs["error"]["CreateUserParams"] = fmt.Sprintf("userAuth: %w,", userAuth)
+		logs["error"]["CreateUser"] = err.Error()
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
+	logs["info"]["user"] = user
 
-	var expiresAt time.Time
 	if exp, ok := claims["exp"].(float64); ok {
 		expiresAt = time.Unix(int64(exp), 0)
 	} else {
@@ -148,65 +177,86 @@ func (h *Handler) AuthUserHandler(w http.ResponseWriter, r *http.Request, provid
 		Data:         string(claimsJSON),
 	}
 
+	logs["info"]["newToken"] = newToken
+
 	savedToken, err := h.repo.TokenRepository().CreateOrUpdateToken(newToken)
 	if err != nil {
-		util.LogError(err)
-		w.WriteHeader(http.StatusInternalServerError)
+		logs["error"]["CreateOrUpdateTokenParams"] = fmt.Sprintf("newToken: %w,", newToken)
+		logs["error"]["SaveToken"] = err.Error()
+		//w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
+	logs["info"]["savedToken"] = savedToken
 
 	// Generate JWT token
-	jwtToken, _, err := util.GenerateJWT(user.ID, provider, expiresAt.Unix(), body.DeviceUUID)
+	jwtToken, _, err = util.GenerateJWT(user.ID, provider, expiresAt.Unix(), body.DeviceUUID)
 	if err != nil {
-		util.LogError(err)
-		w.WriteHeader(http.StatusInternalServerError)
+		logs["error"]["GenerateJWTParams"] = fmt.Sprintf("user.ID, provider, expiresAt.Unix(), body.DeviceUUID: %s, %s, %w, %s", user.ID, provider, expiresAt.Unix(), body.DeviceUUID)
+		logs["error"]["GenerateJWT"] = err.Error()
+		//w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
+	logs["info"]["jwtToken"] = jwtToken
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(models.AuthResponse{
+	response = models.AuthResponse{
 		JWTToken:  jwtToken,
-		ExpiresAt: savedToken.ExpiresAt.Unix(),
-	})
+		ExpiresAt: expiresAt.Unix(),
+	}
+
+	return
 }
 
 func (h *Handler) RefreshTokenHandler(w http.ResponseWriter, r *http.Request) {
-	util.LogInfo("RefreshTokenHandler")
+	response := models.AuthResponse{}
+	logs := make(map[string]map[string]any)
+	logs["info"] = make(map[string]any)
+	logs["error"] = make(map[string]any)
+	logs["info"]["handler"] = "RefreshTokenHandler"
+
+	defer func() {
+		logs["info"]["response"] = response
+		util.LogInfoMap(logs)
+		if len(logs["error"]) == 0 {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			json.NewEncoder(w).Encode(response)
+		}
+
+		w.WriteHeader(http.StatusBadRequest)
+	}()
+
 	userID, ok := r.Context().Value("userID").(uint)
 	if !ok {
-		util.LogError(errors.New("invalid user ID in context"))
-		w.WriteHeader(http.StatusInternalServerError)
+		logs["error"]["userId"] = "invalid user ID in context"
 		return
 	}
+	logs["info"]["userId"] = userID
 
 	provider, ok := r.Context().Value("provider").(string)
 	if !ok {
-		util.LogError(errors.New("invalid provider in context"))
-		w.WriteHeader(http.StatusInternalServerError)
+		logs["error"]["provider"] = "invalid provider in context"
 		return
 	}
+	logs["info"]["provider"] = provider
 
 	deviceUUID, ok := r.Context().Value("deviceUUID").(string)
 	if !ok {
-		util.LogError(errors.New("invalid deviceUUID in context"))
-		w.WriteHeader(http.StatusInternalServerError)
+		logs["error"]["deviceUUID"] = "invalid device UUID in context"
 		return
 	}
+	logs["info"]["deviceUUID"] = deviceUUID
 
 	token := h.repo.TokenRepository().UserToken(userID, provider)
 	if token == nil {
-		util.LogError(errors.New("token is not found"))
-		w.WriteHeader(http.StatusInternalServerError)
+		logs["error"]["token"] = "not found"
 		return
 	}
+	logs["info"]["token"] = token
 
 	if token.AccessToken != "" {
 		decryptAccess, err := util.Decrypt(token.AccessToken)
 		if err != nil {
-			util.LogInfo("error decrypting access token")
-			util.LogError(err)
-			w.WriteHeader(http.StatusInternalServerError)
+			logs["error"]["accessTokenError"] = fmt.Sprintf("error decrypting access token: %s", token.AccessToken)
 			return
 		}
 		token.AccessToken = decryptAccess
@@ -215,9 +265,8 @@ func (h *Handler) RefreshTokenHandler(w http.ResponseWriter, r *http.Request) {
 	if token.RefreshToken != "" {
 		decryptRefresh, err := util.Decrypt(token.RefreshToken)
 		if err != nil {
-			util.LogInfo(fmt.Sprintf("error decrypting refresh token: %s", token.RefreshToken))
-			util.LogError(err)
-			w.WriteHeader(http.StatusInternalServerError)
+			logs["error"]["refreshTokenErrorMessage"] = fmt.Sprintf("error decrypting refresh token: %s", token.RefreshToken)
+			logs["error"]["refreshError"] = err.Error()
 			return
 		}
 		token.RefreshToken = decryptRefresh
@@ -226,9 +275,8 @@ func (h *Handler) RefreshTokenHandler(w http.ResponseWriter, r *http.Request) {
 	if token.IDToken != "" {
 		decryptIDToken, err := util.Decrypt(token.IDToken)
 		if err != nil {
-			util.LogInfo("error decrypting ID token")
-			util.LogError(err)
-			w.WriteHeader(http.StatusInternalServerError)
+			logs["error"]["idTokenErrorMessage"] = fmt.Sprintf("error decrypting ID token: %s", token.IDToken)
+			logs["error"]["idTokenError"] = err.Error()
 			return
 		}
 		token.IDToken = decryptIDToken
@@ -236,20 +284,19 @@ func (h *Handler) RefreshTokenHandler(w http.ResponseWriter, r *http.Request) {
 
 	providerConfig, err := getProviderConfig(token.Provider, h.cfg.Authorization)
 	if err != nil {
-		util.LogInfo("error getting provider config")
-		util.LogError(err)
-		w.WriteHeader(http.StatusInternalServerError)
+		logs["error"]["providerConfigMessage"] = fmt.Sprintf("error getting provider config, provider and confing: %s, %w", token.Provider, h.cfg.Authorization)
+		logs["error"]["providerConfigError"] = err.Error()
 		return
 	}
+	logs["info"]["providerConfig"] = providerConfig
 
 	data := url.Values{}
 	switch token.Provider {
 	case models.PROVIDER_APPLE:
 		_, err := providers.VerifyAppleIdentityToken(token.IDToken, providerConfig)
 		if err != nil {
-			util.LogInfo("error verifying apple")
-			util.LogError(err)
-			w.WriteHeader(http.StatusBadRequest)
+			logs["error"]["appleIdErrorMessage"] = fmt.Sprintf("error verifying apple: %s", token.IDToken)
+			logs["error"]["appleIdError"] = err.Error()
 			return
 		}
 
@@ -260,20 +307,16 @@ func (h *Handler) RefreshTokenHandler(w http.ResponseWriter, r *http.Request) {
 
 		jwtToken, _, err := util.GenerateJWT(userID, provider, expiresAt.Unix(), deviceUUID)
 		if err != nil {
-			util.LogInfo("error generating jwt")
-			util.LogError(err)
-			w.WriteHeader(http.StatusInternalServerError)
+			logs["error"]["jwtTokenErrorMessage"] = fmt.Sprintf("error generating jwt: %s", token.IDToken)
+			logs["error"]["jwtTokenError"] = err.Error()
 			return
 		}
 
-		response := models.AuthResponse{
+		response = models.AuthResponse{
 			JWTToken:  jwtToken,
 			ExpiresAt: expiresAt.Unix(),
 		}
 
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(response)
 		return
 	case models.PROVIDER_GOOGLE:
 		data.Set("client_id", providerConfig.ClientID)
@@ -281,59 +324,61 @@ func (h *Handler) RefreshTokenHandler(w http.ResponseWriter, r *http.Request) {
 		data.Set("grant_type", "refresh_token")
 		data.Set("refresh_token", token.RefreshToken)
 	default:
-		util.LogError(errors.New("invalid provider"))
-		w.WriteHeader(http.StatusBadRequest)
+		logs["error"]["provider"] = fmt.Sprintf("invalid provider: %s", token.Provider)
 		return
 	}
 
 	// Send POST request to refresh token URL
 	resp, err := http.PostForm(providerConfig.TokenURL, data)
 	if err != nil {
-		util.LogInfo("error posting token")
-		util.LogError(err)
-		w.WriteHeader(http.StatusInternalServerError)
+		logs["error"]["tokenErrorParams"] = fmt.Sprintf("providerConfig.TokenURL, data: %s, %s", providerConfig.TokenURL, data)
+		logs["error"]["tokenError"] = err.Error()
 		return
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		util.LogError(errors.New("Token exchange failed"))
-		w.WriteHeader(http.StatusBadRequest)
+		logs["error"]["tokenErrorMessage"] = fmt.Sprintf("error posting data: %s", data)
+		//w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
 	bodyBytes, err := io.ReadAll(resp.Body)
 	if err != nil {
-		util.LogInfo("error reading body")
-		util.LogError(err)
-		w.WriteHeader(http.StatusInternalServerError)
+		logs["error"]["bodyErrorMessage"] = fmt.Sprintf("error reading body: %s", data)
+		logs["error"]["bodyError"] = err.Error()
+		//w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
+	logs["info"]["body"] = string(bodyBytes)
 
 	var bodyResponse map[string]interface{}
 	if err = json.Unmarshal(bodyBytes, &bodyResponse); err != nil {
-		util.LogInfo("error unmarshalling body")
-		util.LogError(err)
-		w.WriteHeader(http.StatusInternalServerError)
+		logs["error"]["bodyErrorMessage"] = fmt.Sprintf("error unmarshalling body: %s", data)
+		logs["error"]["bodyError"] = err.Error()
+		//w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
+	logs["info"]["bodyResponse"] = bodyResponse
 
 	dataJSON, err := util.UserInfoToJSON(bodyResponse)
 	if err != nil {
-		util.LogInfo("error unmarshalling body")
-		util.LogError(err)
-		w.WriteHeader(http.StatusInternalServerError)
+		logs["error"]["bodyErrorMessage"] = fmt.Sprintf("error unmarshalling body: %s", data)
+		logs["error"]["bodyError"] = err.Error()
+		//w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
+	logs["info"]["bodyJson"] = dataJSON
 
 	// Decode providers response
 	var tokenResponse providers.TokenResponse
 	if err = json.Unmarshal(bodyBytes, &tokenResponse); err != nil {
-		util.LogInfo("error unmarshalling body")
-		util.LogError(err)
-		w.WriteHeader(http.StatusInternalServerError)
+		logs["error"]["bodyErrorMessage"] = fmt.Sprintf("error unmarshalling body: %s", data)
+		logs["error"]["bodyError"] = err.Error()
+		//w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
+	logs["info"]["tokenResponse"] = tokenResponse
 
 	expiresAt := time.Now().Add(time.Duration(tokenResponse.ExpiresIn) * time.Second)
 	if h.cfg.App.CustomExpiresTime {
@@ -341,146 +386,169 @@ func (h *Handler) RefreshTokenHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Update token
+	tokendb := models.Token{
+		ID:           token.ID,
+		UserID:       token.UserID,
+		Provider:     token.Provider,
+		AccessToken:  tokenResponse.AccessToken,  // new access token
+		RefreshToken: tokenResponse.RefreshToken, // new refresh token
+		ExpirationIn: tokenResponse.ExpiresIn,
+		ExpiresAt:    expiresAt,
+		Data:         string(dataJSON),
+		UpdatedAt:    time.Now(),
+	}
 	_, err = h.repo.TokenRepository().UpdateToken(
-		models.Token{
-			ID:           token.ID,
-			UserID:       token.UserID,
-			Provider:     token.Provider,
-			AccessToken:  tokenResponse.AccessToken,  // new access token
-			RefreshToken: tokenResponse.RefreshToken, // new refresh token
-			ExpirationIn: tokenResponse.ExpiresIn,
-			ExpiresAt:    expiresAt,
-			Data:         string(dataJSON),
-			UpdatedAt:    time.Now(),
-		},
+		tokendb,
 		token.Provider,
 		deviceUUID,
 	)
 	if err != nil {
-		util.LogInfo("error updating token")
-		util.LogError(err)
-		w.WriteHeader(http.StatusInternalServerError)
+		logs["error"]["tokenErrorParams"] = fmt.Sprintf("token, provider, deviceUUID: %s, %w, %s", tokendb, token.Provider, deviceUUID)
+		logs["error"]["tokenError"] = err.Error()
+		//w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
 	newJWT, _, err := util.GenerateJWT(token.UserID, provider, expiresAt.Unix(), deviceUUID)
 	if err != nil {
-		util.LogInfo("error generating jwt")
-		util.LogError(err)
-		w.WriteHeader(http.StatusInternalServerError)
+		logs["error"]["tokenErrorParams"] = fmt.Sprintf("token.UserID, provider, expiresAt.Unix(), deviceUUID: %s, %w, %s, %s", token.UserID, provider, expiresAt.Unix(), deviceUUID)
+		logs["error"]["tokenError"] = err.Error()
+		//w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
+	logs["info"]["newJWT"] = newJWT
 
-	response := models.AuthResponse{
+	response = models.AuthResponse{
 		JWTToken:  newJWT,
 		ExpiresAt: expiresAt.Unix(),
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(response)
+	return
 }
 
 // LogoutHandler
 func (h *Handler) LogoutHandler(w http.ResponseWriter, r *http.Request) {
-	util.LogInfo("LogoutHandler")
+	logs := make(map[string]map[string]any)
+	logs["info"] = make(map[string]any)
+	logs["error"] = make(map[string]any)
+	defer func() {
+		util.LogInfoMap(logs)
+		if len(logs["error"]) == 0 {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+		}
+
+		w.WriteHeader(http.StatusBadRequest)
+	}()
+
+	logs["info"]["handler"] = "LogoutHandler"
 	userID, ok := r.Context().Value("userID").(uint)
 	if !ok {
-		util.LogError(errors.New("Invalid user ID in context"))
-		w.WriteHeader(http.StatusUnauthorized)
+		logs["error"]["userId"] = "invalid user ID in context"
 		return
 	}
+	logs["info"]["userId"] = userID
 
 	provider, ok := r.Context().Value("provider").(string)
 	if !ok {
-		util.LogError(errors.New("Invalid provider in context"))
-		w.WriteHeader(http.StatusUnauthorized)
+		logs["error"]["provider"] = "invalid provider in context"
 		return
 	}
+	logs["info"]["provider"] = provider
 
 	deviceUUID, ok := r.Context().Value("deviceUUID").(string)
 	if !ok {
-		util.LogError(errors.New("invalid deviceUUID in context"))
-		w.WriteHeader(http.StatusInternalServerError)
+		logs["error"]["deviceUUID"] = "invalid device UUID in context"
 		return
 	}
+	logs["info"]["deviceUUID"] = deviceUUID
 
 	token := h.repo.TokenRepository().UserToken(userID, provider)
 	if token == nil {
-		util.LogError(errors.New("Token not found"))
-		w.WriteHeader(http.StatusBadRequest)
+		logs["error"]["tokenError"] = "Token not found"
 		return
 	}
+	logs["info"]["token"] = token
 
 	switch provider {
 	case models.PROVIDER_APPLE:
 		err := h.repo.TokenRepository().InvalidateIdToken(token.IDToken, deviceUUID)
 		if err != nil {
-			util.LogError(err)
-			w.WriteHeader(http.StatusBadRequest)
+			logs["error"]["InvalidateIdTokenParams"] = fmt.Sprintf("token.IDToken, deviceUUID: %s, %s", token.IDToken, deviceUUID)
+			logs["error"]["InvalidateIdToken"] = err.Error()
 			return
 		}
-		w.WriteHeader(http.StatusOK)
 		return
 	case models.PROVIDER_GOOGLE:
 		//data.Set("token", decryptAccess)
 	default:
-		util.LogError(errors.New("Unsupported provider"))
-		w.WriteHeader(http.StatusBadRequest)
+		logs["error"]["provider"] = fmt.Sprintf("Unsupported provider: %s", provider)
 		return
 	}
 
 	if err := h.repo.TokenRepository().InvalidateAccessToken(token.AccessToken, deviceUUID); err != nil {
-		util.LogInfo("error invalidating access token")
-		util.LogError(err)
-		w.WriteHeader(http.StatusBadRequest)
+		logs["error"]["tokenError"] = "invalid access token"
 		return
 	}
 
 	// Send response
-	w.WriteHeader(http.StatusOK)
+	return
 }
 
 func (h *Handler) RemoveHandler(w http.ResponseWriter, r *http.Request) {
-	util.LogInfo("RemoveHandler")
+	logs := make(map[string]map[string]any)
+	logs["info"] = make(map[string]any)
+	logs["error"] = make(map[string]any)
+
+	defer func() {
+		logs["info"]["handler"] = "RemoveHandler"
+		util.LogInfoMap(logs)
+		if len(logs["error"]) == 0 {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+		}
+
+		w.WriteHeader(http.StatusBadRequest)
+	}()
+
 	userID, ok := r.Context().Value("userID").(uint)
 	if !ok {
-		util.LogError(errors.New("Invalid user ID in context"))
-		w.WriteHeader(http.StatusUnauthorized)
+		logs["error"]["userId"] = "invalid user ID in context"
 		return
 	}
-
-	fmt.Println(h.cfg.App.DeleteMode)
+	logs["info"]["userId"] = userID
 
 	if h.cfg.App.DeleteMode == "" {
 		h.cfg.App.DeleteMode = config.DeleteModeSoft
 	}
 
+	logs["info"]["deleteMode"] = h.cfg.App.DeleteMode
+
 	switch h.cfg.App.DeleteMode {
 	case config.DeleteModeSoft:
 		err := h.repo.UserRepository().AnonymizeUserData(h.cfg.App.AnonymizePhrase, userID)
 		if err != nil {
-			util.LogInfo("error removing user")
-			util.LogError(err)
-			w.WriteHeader(http.StatusInternalServerError)
+			logs["error"]["AnonymizePhraseParams"] = fmt.Sprintf("h.cfg.App.AnonymizePhrase, userID: %s, %s", h.cfg.App.AnonymizePhrase, userID)
+			logs["error"]["anonymizePhraseError"] = err.Error()
+			//w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 
 	case config.DeleteModeHard:
 		err := h.repo.UserRepository().DeleteUser(userID)
 		if err != nil {
-			util.LogInfo("error removing user")
-			util.LogError(err)
-			w.WriteHeader(http.StatusInternalServerError)
+			logs["error"]["DeleteUserParams"] = fmt.Sprintf("userID: %s", userID)
+			logs["error"]["DeleteUser"] = err.Error()
+			//w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 	default:
-		util.LogError(errors.New("Unsupported delete mode"))
-		w.WriteHeader(http.StatusBadRequest)
+		logs["error"]["deleteMode"] = "Unsupported delete mode"
+		//w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
-	w.WriteHeader(http.StatusOK)
+	//w.WriteHeader(http.StatusOK)
 	return
 }
 

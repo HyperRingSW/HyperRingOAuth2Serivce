@@ -30,3 +30,13 @@ func LogInfo(msg string) {
 		log.Println("INFO:", msg)
 	}
 }
+
+func LogInfoMap(logs map[string]map[string]any) {
+	jsonData, err := json.MarshalIndent(logs, "", "  ")
+	if err != nil {
+		log.Println("error decoding logs", err)
+		return
+	}
+
+	log.Println(string(jsonData))
+}
