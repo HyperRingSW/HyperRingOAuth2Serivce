@@ -228,12 +228,12 @@ func VerifyAppleIdentityToken(idToken string, providerConfig ProviderConfig) (ma
 	parser := new(jwt.Parser)
 	token, _, err := parser.ParseUnverified(idToken, jwt.MapClaims{})
 	if err != nil {
-		return nil, fmt.Errorf("failed parsing unverified token: %v", err)
+		return nil, fmt.Errorf("apple failed parsing unverified token: %v", err)
 	}
 
 	kid, ok := token.Header["kid"].(string)
 	if !ok {
-		return nil, errors.New("kid header not found")
+		return nil, errors.New("apple kid header not found")
 	}
 
 	// find kid
@@ -245,18 +245,18 @@ func VerifyAppleIdentityToken(idToken string, providerConfig ProviderConfig) (ma
 		}
 	}
 	if jwk == nil {
-		return nil, errors.New("error fetching jwk")
+		return nil, errors.New("apple error fetching jwk")
 	}
 
 	pubKey, err := ParseRSAPublicKeyFromJWK(jwk)
 	if err != nil {
-		return nil, fmt.Errorf("error parsing public key: %v", err)
+		return nil, fmt.Errorf("apple error parsing public key: %v", err)
 	}
 
 	// Parse and verify the token.
 	parsedToken, err := jwt.Parse(idToken, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodRSA); !ok {
-			return nil, fmt.Errorf("incorrect sign method: %v", token.Header["alg"])
+			return nil, fmt.Errorf("apple incorrect sign method: %v", token.Header["alg"])
 		}
 		return pubKey, nil
 	})
@@ -264,25 +264,25 @@ func VerifyAppleIdentityToken(idToken string, providerConfig ProviderConfig) (ma
 		return nil, fmt.Errorf("error token validation: %v", err)
 	}
 	if !parsedToken.Valid {
-		return nil, errors.New("invalid token")
+		return nil, errors.New("apple invalid token")
 	}
 
 	claims, ok := parsedToken.Claims.(jwt.MapClaims)
 	if !ok {
-		return nil, errors.New("cannot parse claims")
+		return nil, errors.New("apple cannot parse claims")
 	}
 
 	if aud, ok := claims["aud"].(string); !ok || aud != providerConfig.ClientID {
 		if !ok {
-			util.LogInfo("google audience header not found")
+			util.LogInfo("apple audience header not found")
 		}
 		if aud != providerConfig.ClientID {
-			util.LogInfo(fmt.Sprintf("google audience mismatch: %s", aud))
+			util.LogInfo(fmt.Sprintf("apple audience mismatch: %s", aud))
 		}
-		return nil, errors.New("google invalid audience")
+		return nil, errors.New("apple invalid audience")
 	}
 	if exp, ok := claims["exp"].(float64); ok && int64(exp) < time.Now().Unix() {
-		return nil, errors.New("google token expired")
+		return nil, errors.New("apple token expired")
 	}
 
 	// Other checking: audience и issuer.
@@ -305,7 +305,7 @@ func VerifyAppleIdentityToken(idToken string, providerConfig ProviderConfig) (ma
 		return nil, errors.New("invalid iss")
 	}
 	if exp, ok := claims["exp"].(float64); ok && int64(exp) < time.Now().Unix() {
-		return nil, errors.New("token expired")
+		return nil, errors.New("apple token expired")
 	}
 
 	return claims, nil

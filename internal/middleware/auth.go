@@ -2,7 +2,6 @@ package middleware
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net/http"
 	"oauth2-server/internal/dependency"
@@ -43,37 +42,39 @@ func (h *Middleware) AuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
 		}()
 
 		authHeader := r.Header.Get("Authorization")
+		logs["info"]["authHeader"] = authHeader
 		if !strings.HasPrefix(authHeader, "Bearer ") {
-			util.LogInfo(fmt.Sprintf("authorization header format is incorrect: %s", authHeader))
-			util.LogError(errors.New("authorization header format is incorrect"))
-
-			w.WriteHeader(http.StatusUnauthorized)
+			logs["error"]["authHeader"] = "authorization header format is incorrect"
+			//w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
 
 		token := strings.TrimPrefix(authHeader, "Bearer ")
+		logs["info"]["token"] = token
 
 		claims, err := util.ParseJWT(token, requestPath)
 		if err != nil {
-			util.LogInfo("AuthMiddleware invalid token")
-			util.LogError(err)
-			w.WriteHeader(http.StatusUnauthorized)
+			logs["error"]["ParseJWT"] = "invalid token"
+			logs["error"]["ParseJWTMsg"] = err.Error()
+			//w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
 
-		idFloat, ok := claims["user_id"].(float64)
+		idFloat, ok := claims["userId"].(float64)
+		logs["info"]["id"] = idFloat
 		if !ok {
-			util.LogInfo("invalid user id")
-			util.LogError(err)
-			w.WriteHeader(http.StatusUnauthorized)
+			logs["error"]["userId"] = "invalid user id"
+			logs["error"]["userIdMsg"] = err.Error()
+			//w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
 		userID := uint(idFloat)
 
 		tokenDB := h.repo.TokenRepository().UserToken(userID, claims["provider"].(string))
 		if tokenDB == nil {
-			util.LogError(errors.New("token is not found"))
-			w.WriteHeader(http.StatusUnauthorized)
+			logs["error"]["UserTokenParams"] = fmt.Sprintf("userID, provider: %s, %s", userID, claims["provider"].(string))
+			logs["error"]["UserTokenParamsMsg"] = "token is not found"
+			//w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
 
@@ -81,6 +82,9 @@ func (h *Middleware) AuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
 		ctx := context.WithValue(r.Context(), "userID", userID)
 		ctx = context.WithValue(ctx, "provider", claims["provider"])
 		ctx = context.WithValue(ctx, "deviceUUID", claims["device_uuid"])
+		logs["info"]["ctxUserID"] = userID
+		logs["info"]["ctxProvider"] = claims["provider"]
+		logs["info"]["ctxDeviceUuid"] = claims["device_uuid"]
 		next(w, r.WithContext(ctx))
 	}
 }
