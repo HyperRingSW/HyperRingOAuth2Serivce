@@ -119,21 +119,6 @@ func (repo *PostgresDB) AnonymizeUserData(phrase string, userID uint) error {
 	}
 
 	for _, u := range ur {
-		hashName := util.GetHash(phrase, u.RingID+"_name")
-		hashUserNamed := util.GetHash(phrase, u.RingID+"_userNamed")
-		hashDescription := util.GetHash(phrase, u.RingID+"_description")
-
-		if err := tx.Model(&models.Ring{}).
-			Where("id = ?", u.RingID).
-			Updates(map[string]interface{}{
-				"name":        hashName,
-				"user_named":  hashUserNamed,
-				"description": hashDescription,
-			}).Error; err != nil {
-			tx.Rollback()
-			return err
-		}
-
 		hashCIN := util.GetHash(phrase, u.RingID+"_cin")
 		hashIIN := util.GetHash(phrase, u.RingID+"_iin")
 		hashDDName := util.GetHash(phrase, u.RingID+"_device_name")
@@ -162,6 +147,44 @@ func (repo *PostgresDB) AnonymizeUserData(phrase string, userID uint) error {
 				Where("device_description_id = ?", deviceDesc.ID).
 				Updates(map[string]interface{}{
 					"is_user_name": newDeviceDescription,
+				}).Error; err != nil {
+				tx.Rollback()
+				return err
+			}
+		}
+
+		hashName := util.GetHash(phrase, u.RingID+"_name")
+		hashUserNamed := util.GetHash(phrase, u.RingID+"_userNamed")
+		hashDescription := util.GetHash(phrase, u.RingID+"_description")
+
+		if err := tx.Model(&models.Ring{}).
+			Where("id = ?", u.RingID).
+			Updates(map[string]interface{}{
+				"name":        hashName,
+				"user_named":  hashUserNamed,
+				"description": hashDescription,
+			}).Error; err != nil {
+			tx.Rollback()
+			return err
+		}
+
+		if err := tx.Model(&models.Ring{}).
+			Where("id = ?", u.RingID).
+			Updates(map[string]interface{}{
+				"id": util.GetHash(phrase, fmt.Sprintf("%d_ring_id", u.RingID)),
+			}).Error; err != nil {
+			tx.Rollback()
+			return err
+		}
+
+		var UserRing models.UserRing
+		if err := tx.Where("id = ?", u.ID).First(&UserRing).Error; err == nil {
+
+			if err := tx.Model(&models.UserRing{}).
+				Where("id = ?", u.ID).
+				Updates(map[string]interface{}{
+					//"user_id": util.GetHash(phrase, fmt.Sprintf("%d_user_id", userID)),
+					"ring_id": util.GetHash(phrase, fmt.Sprintf("%d_ring_id", u.RingID)),
 				}).Error; err != nil {
 				tx.Rollback()
 				return err
