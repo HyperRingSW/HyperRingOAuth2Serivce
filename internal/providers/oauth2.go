@@ -24,19 +24,27 @@ type TokenResponse struct {
 }
 
 func GetUserInfo(accessToken string, userInfoURL string, provider string) (map[string]interface{}, error) {
+	logs := make(map[string]map[string]any)
+	logs["info"] = make(map[string]any)
+	logs["error"] = make(map[string]any)
+	defer func() {
+		logs["info"]["providersGetUserInfo"] = "GetUserInfo"
+		util.LogInfoMap(logs)
+	}()
 	var req *http.Request
 	var err error
 
+	logs["info"]["provider"] = provider
 	switch provider {
-	case models.PROVIDER_FB:
-		fullURL := fmt.Sprintf("%s?fields=id,name,email&access_token=%s", userInfoURL, accessToken)
-		req, err = http.NewRequest("GET", fullURL, nil)
 	case models.PROVIDER_GOOGLE, models.PROVIDER_APPLE:
 		req, err = http.NewRequest("GET", userInfoURL, nil)
+		logs["info"]["GetUserInfoNewRequest"] = userInfoURL
 		if err == nil {
 			req.Header.Set("Authorization", "Bearer "+accessToken)
+			logs["info"]["GetUserInfoHeaderSet"] = "Bearer " + accessToken
 		}
 	default:
+		logs["error"]["provider"] = fmt.Sprintf("Unknown provider %s", provider)
 		return nil, fmt.Errorf("unsupported provider: %s", provider)
 	}
 
@@ -46,17 +54,23 @@ func GetUserInfo(accessToken string, userInfoURL string, provider string) (map[s
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
+		logs["error"]["GetUserInfoDefaultClientMsg"] = err.Error()
+		logs["error"]["GetUserInfoDefaultClientReqURL"] = req.URL.String()
+		logs["error"]["GetUserInfoDefaultClientReq"] = req
 		return nil, fmt.Errorf("failed to fetch user info: %w", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
+		logs["error"]["GetUserInfoDefaultClientRespBody"] = string(body)
+		logs["error"]["GetUserInfoDefaultClientRespStatus"] = resp.Status
 		return nil, fmt.Errorf("user info fetch failed: %s, response: %s", resp.Status, string(body))
 	}
 
 	var userInfo map[string]interface{}
-	if err := json.NewDecoder(resp.Body).Decode(&userInfo); err != nil {
+	if err = json.NewDecoder(resp.Body).Decode(&userInfo); err != nil {
+		logs["error"]["GetUserInfoNewDecoder"] = err.Error()
 		return nil, fmt.Errorf("failed to decode user info: %w", err)
 	}
 
@@ -271,6 +285,11 @@ func VerifyAppleIdentityToken(idToken string, providerConfig ProviderConfig) (ma
 	if !ok {
 		return nil, errors.New("apple cannot parse claims")
 	}
+
+	logs := make(map[string]map[string]interface{})
+	logs["info"] = make(map[string]any)
+	logs["info"]["claims"] = claims
+	util.LogInfoMap(logs)
 
 	if aud, ok := claims["aud"].(string); !ok || aud != providerConfig.ClientID {
 		if !ok {

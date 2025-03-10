@@ -102,7 +102,8 @@ func (h *Handler) AuthUserHandler(w http.ResponseWriter, r *http.Request, provid
 		}
 		claims, err = providers.VerifyAppleIdentityToken(body.IdToken, providerConfig)
 		if err != nil {
-			logs["error"]["VerifyAppleIdentityTokenParams"] = fmt.Sprintf("body.IdToken, providerConfig: %s, %w,", body.IdToken, providerConfig)
+			logs["error"]["VerifyAppleIdentityTokenParamIdToken"] = fmt.Sprintf("body.IdToken: %s", body.IdToken)
+			logs["error"]["VerifyAppleIdentityTokenParamProviderConfig"] = fmt.Sprintf("providerConfig: %s", body.IdToken, providerConfig)
 			logs["error"]["VerifyAppleIdentityToken"] = err.Error()
 			//w.WriteHeader(http.StatusBadRequest)
 			return
@@ -191,7 +192,10 @@ func (h *Handler) AuthUserHandler(w http.ResponseWriter, r *http.Request, provid
 	// Generate JWT token
 	jwtToken, _, err = util.GenerateJWT(user.ID, provider, expiresAt.Unix(), body.DeviceUUID)
 	if err != nil {
-		logs["error"]["GenerateJWTParams"] = fmt.Sprintf("user.ID, provider, expiresAt.Unix(), body.DeviceUUID: %s, %s, %w, %s", user.ID, provider, expiresAt.Unix(), body.DeviceUUID)
+		logs["error"]["GenerateJWTParamsUserId"] = fmt.Sprintf("user.ID: %s", user.ID)
+		logs["error"]["GenerateJWTParamsProvider"] = fmt.Sprintf("provider: %s", provider)
+		logs["error"]["GenerateJWTParamsExpiresAt"] = fmt.Sprintf("expiresAt.Unix(): %s", expiresAt.Unix())
+		logs["error"]["GenerateJWTParamsDeviceUUID"] = fmt.Sprintf("body.DeviceUUID: %s", body.DeviceUUID)
 		logs["error"]["GenerateJWT"] = err.Error()
 		//w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -331,7 +335,8 @@ func (h *Handler) RefreshTokenHandler(w http.ResponseWriter, r *http.Request) {
 	// Send POST request to refresh token URL
 	resp, err := http.PostForm(providerConfig.TokenURL, data)
 	if err != nil {
-		logs["error"]["tokenErrorParams"] = fmt.Sprintf("providerConfig.TokenURL, data: %s, %s", providerConfig.TokenURL, data)
+		logs["error"]["tokenErrorParamsTokenURL"] = fmt.Sprintf("providerConfig.TokenURL: %s", providerConfig.TokenURL)
+		logs["error"]["tokenErrorParamData"] = fmt.Sprintf("providerConfig.TokenURL, data: %s", data)
 		logs["error"]["tokenError"] = err.Error()
 		return
 	}
@@ -403,7 +408,9 @@ func (h *Handler) RefreshTokenHandler(w http.ResponseWriter, r *http.Request) {
 		deviceUUID,
 	)
 	if err != nil {
-		logs["error"]["tokenErrorParams"] = fmt.Sprintf("token, provider, deviceUUID: %s, %w, %s", tokendb, token.Provider, deviceUUID)
+		logs["error"]["tokenErrorParamsToken"] = fmt.Sprintf("token: %s", tokendb)
+		logs["error"]["tokenErrorParamProvider"] = fmt.Sprintf("provider: %s", token.Provider)
+		logs["error"]["tokenErrorParamDeviceUUID"] = fmt.Sprintf("deviceUUID: %s", deviceUUID)
 		logs["error"]["tokenError"] = err.Error()
 		//w.WriteHeader(http.StatusInternalServerError)
 		return
@@ -411,7 +418,10 @@ func (h *Handler) RefreshTokenHandler(w http.ResponseWriter, r *http.Request) {
 
 	newJWT, _, err := util.GenerateJWT(token.UserID, provider, expiresAt.Unix(), deviceUUID)
 	if err != nil {
-		logs["error"]["tokenErrorParams"] = fmt.Sprintf("token.UserID, provider, expiresAt.Unix(), deviceUUID: %s, %w, %s, %s", token.UserID, provider, expiresAt.Unix(), deviceUUID)
+		logs["error"]["tokenErrorParamUserID"] = fmt.Sprintf("token.UserID: %s", token.UserID)
+		logs["error"]["tokenErrorParamProvider"] = fmt.Sprintf("provider: %s", provider)
+		logs["error"]["tokenErrorParamExpiresAt"] = fmt.Sprintf("expiresAt: %s", expiresAt.Unix())
+		logs["error"]["tokenErrorParamDeviceUUID"] = fmt.Sprintf("deviceUUID: %s", deviceUUID)
 		logs["error"]["tokenError"] = err.Error()
 		//w.WriteHeader(http.StatusInternalServerError)
 		return

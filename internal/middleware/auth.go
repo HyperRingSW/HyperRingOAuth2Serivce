@@ -64,7 +64,6 @@ func (h *Middleware) AuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
 		logs["info"]["id"] = idFloat
 		if !ok {
 			logs["error"]["userId"] = "invalid user id"
-			logs["error"]["userIdMsg"] = err.Error()
 			//w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
