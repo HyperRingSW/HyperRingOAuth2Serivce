@@ -11,6 +11,7 @@ type UserRepository interface {
 	GetUserByID(userID uint) *models.UserAuth
 	UpdateUser(userID uint, updates map[string]interface{}) error
 	DeleteUser(userID uint) error
+	AnonymizeUserData(phrase string, userID uint) error
 }
 
 type TokenRepository interface {
@@ -19,6 +20,7 @@ type TokenRepository interface {
 	InvalidateAccessToken(accessToken string, deviceUUID string) error
 	InvalidateIdToken(idToken string, deviceUUID string) error
 	UserToken(userId uint, provider string) *models.Token
+	UserTokens(userId uint) ([]models.Token, error)
 }
 
 type RingRepository interface {
@@ -47,9 +49,16 @@ type AuthHandler interface {
 	AuthUserHandler(w http.ResponseWriter, r *http.Request, provider string)
 	RefreshTokenHandler(w http.ResponseWriter, r *http.Request)
 	LogoutHandler(w http.ResponseWriter, r *http.Request)
+	RemoveHandler(w http.ResponseWriter, r *http.Request)
 }
+
 type UserHandler interface {
 	GetUserProfile(w http.ResponseWriter, r *http.Request)
+	ExportUserData(w http.ResponseWriter, r *http.Request)
+}
+
+type MiddleHandler interface {
+	AuthMiddleware(next http.HandlerFunc) http.HandlerFunc
 }
 
 type RingHandler interface {

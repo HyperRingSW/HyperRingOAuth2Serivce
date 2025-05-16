@@ -42,6 +42,8 @@ func (repo *PostgresDB) SaveRing(ring *models.Ring) (*models.Ring, error) {
 		if err := repo.db.Create(&ring).Error; err != nil {
 			return nil, errors.New("error save ring: " + err.Error())
 		}
+	} else {
+		return nil, errors.New("ring already exists")
 	}
 
 	return &savedRing, nil
@@ -73,20 +75,25 @@ func (repo *ringRepository) GetRing(id string) (*models.Ring, error) {
 		Where("id = ?", id).First(&ring).Error; err != nil {
 		return nil, errors.New("error get ring: " + err.Error())
 	}
-	dec, err := util.Decrypt(ring.DeviceDescription.CIN)
-	if err != nil {
-		return nil, err
-	}
-	ring.DeviceDescription.CIN = dec
 
-	dec, err = util.Decrypt(ring.DeviceDescription.IIN)
-	if err != nil {
-		return nil, err
+	if ring.DeviceDescription.CIN != "" {
+		dec, err := util.Decrypt(ring.DeviceDescription.CIN)
+		if err != nil {
+			return nil, err
+		}
+		ring.DeviceDescription.CIN = dec
 	}
-	ring.DeviceDescription.IIN = dec
+
+	if ring.DeviceDescription.IIN != "" {
+		dec, err := util.Decrypt(ring.DeviceDescription.IIN)
+		if err != nil {
+			return nil, err
+		}
+		ring.DeviceDescription.IIN = dec
+	}
 
 	if ring.UserNamed != "" {
-		dec, err = util.Decrypt(ring.UserNamed)
+		dec, err := util.Decrypt(ring.UserNamed)
 		if err != nil {
 			return nil, err
 		}

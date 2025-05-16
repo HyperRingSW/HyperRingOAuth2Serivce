@@ -11,6 +11,7 @@ import (
 	"math/big"
 	"net/http"
 	"oauth2-server/internal/models"
+	"oauth2-server/internal/util"
 	"time"
 )
 
@@ -174,10 +175,16 @@ func VerifyGoogleIDToken(idToken string, providerConfig ProviderConfig) (map[str
 
 	// Others checking: audience и expiration.
 	if aud, ok := claims["aud"].(string); !ok || aud != providerConfig.ClientID {
-		return nil, errors.New("invalid audience")
+		if !ok {
+			util.LogInfo("google audience header not found")
+		}
+		if aud != providerConfig.ClientID {
+			util.LogInfo(fmt.Sprintf("google audience mismatch: %s", aud))
+		}
+		return nil, errors.New("google invalid audience")
 	}
 	if exp, ok := claims["exp"].(float64); ok && int64(exp) < time.Now().Unix() {
-		return nil, errors.New("token expired")
+		return nil, errors.New("google token expired")
 	}
 
 	return claims, nil
@@ -265,11 +272,36 @@ func VerifyAppleIdentityToken(idToken string, providerConfig ProviderConfig) (ma
 		return nil, errors.New("cannot parse claims")
 	}
 
+	if aud, ok := claims["aud"].(string); !ok || aud != providerConfig.ClientID {
+		if !ok {
+			util.LogInfo("google audience header not found")
+		}
+		if aud != providerConfig.ClientID {
+			util.LogInfo(fmt.Sprintf("google audience mismatch: %s", aud))
+		}
+		return nil, errors.New("google invalid audience")
+	}
+	if exp, ok := claims["exp"].(float64); ok && int64(exp) < time.Now().Unix() {
+		return nil, errors.New("google token expired")
+	}
+
 	// Other checking: audience и issuer.
 	if aud, ok := claims["aud"].(string); !ok || aud != providerConfig.ClientID {
+		if !ok {
+			util.LogInfo("apple audience header not found")
+		}
+		if aud != providerConfig.ClientID {
+			util.LogInfo(fmt.Sprintf("apple audience mismatch: %s", aud))
+		}
 		return nil, errors.New("invalid audience")
 	}
 	if iss, ok := claims["iss"].(string); !ok || iss != "https://appleid.apple.com" {
+		if !ok {
+			util.LogInfo("apple ISS header not found")
+		}
+		if iss != "https://appleid.apple.com" {
+			util.LogInfo(fmt.Sprintf("apple ISS mismatch: %s", iss))
+		}
 		return nil, errors.New("invalid iss")
 	}
 	if exp, ok := claims["exp"].(float64); ok && int64(exp) < time.Now().Unix() {
