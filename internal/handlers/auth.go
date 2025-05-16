@@ -33,6 +33,7 @@ func (h *Handler) AuthUserHandler(w http.ResponseWriter, r *http.Request, provid
 	logs["error"] = make(map[string]any)
 	jwtToken := ""
 	var expiresAt time.Time
+
 	defer func() {
 		logs["info"]["response"] = response
 		util.LogInfoMap(logs)
@@ -44,6 +45,7 @@ func (h *Handler) AuthUserHandler(w http.ResponseWriter, r *http.Request, provid
 
 		w.WriteHeader(http.StatusBadRequest)
 	}()
+
 	logs["info"]["handler"] = "AuthUserHandler"
 	logs["info"]["provider"] = provider
 

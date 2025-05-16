@@ -16,8 +16,8 @@ type PostgresDB struct {
 func New(cfg config.DatabaseConfig, autoMigrate bool) (*PostgresDB, error) {
 
 	dsn := fmt.Sprintf(
-		"host=%s port=%d user=%s password=%s dbname=%s sslmode=%s",
-		cfg.Host, cfg.Port, cfg.User, cfg.Password, cfg.Name, cfg.SSLMode,
+		"host=%s port=%d user=%s password=%s dbname=%s ",
+		cfg.Host, cfg.Port, cfg.User, cfg.Password, cfg.Name,
 	)
 
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
