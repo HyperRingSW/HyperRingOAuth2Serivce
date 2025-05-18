@@ -50,6 +50,11 @@ type AuthHandler interface {
 	RefreshTokenHandler(w http.ResponseWriter, r *http.Request)
 	LogoutHandler(w http.ResponseWriter, r *http.Request)
 	RemoveHandler(w http.ResponseWriter, r *http.Request)
+	AuthWebHandler(w http.ResponseWriter, r *http.Request, provider string)
+	AuthWebCallbackHandler(w http.ResponseWriter, r *http.Request, provider string)
+	AppleCallbackHandler(w http.ResponseWriter, r *http.Request)
+	GoogleCallbackHandler(w http.ResponseWriter, r *http.Request)
+	GoogleAuthButtonHandler(w http.ResponseWriter, r *http.Request)
 }
 
 type UserHandler interface {

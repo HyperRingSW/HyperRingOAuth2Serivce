@@ -6,13 +6,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/golang-jwt/jwt/v5"
 	"io"
 	"math/big"
 	"net/http"
 	"oauth2-server/internal/models"
 	"oauth2-server/internal/util"
 	"time"
+
+	"github.com/golang-jwt/jwt/v5"
 )
 
 type TokenResponse struct {

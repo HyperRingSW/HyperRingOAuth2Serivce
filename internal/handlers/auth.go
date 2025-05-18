@@ -3,7 +3,6 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/google/uuid"
 	"io"
 	"net/http"
 	"net/url"
@@ -14,6 +13,8 @@ import (
 	"oauth2-server/internal/util"
 	"strings"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 type authHandler struct {
@@ -206,6 +207,62 @@ func (h *Handler) AuthUserHandler(w http.ResponseWriter, r *http.Request, provid
 	}
 
 	return
+}
+
+func (h *Handler) AuthWebHandler(w http.ResponseWriter, r *http.Request, provider string) {
+	logs := make(map[string]map[string]any)
+	logs["info"] = make(map[string]any)
+	logs["error"] = make(map[string]any)
+	logs["info"]["handler"] = "AuthWebHandler"
+	logs["info"]["provider"] = provider
+
+	// Get provider config
+	providerConfig, err := getProviderConfig(provider, h.cfg.Authorization)
+	if err != nil {
+		logs["error"]["providerConfigMessage"] = fmt.Sprintf("error getting provider config, provider and confing: %s, %w", provider, h.cfg.Authorization)
+		logs["error"]["providerConfigError"] = err.Error()
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	logs["info"]["providerConfig"] = providerConfig
+
+	// Возвращаю строку URL для авторизации Google обратно в код
+	var authURL string
+	switch provider {
+	case models.PROVIDER_GOOGLE:
+		authURL = fmt.Sprintf("https://accounts.google.com/o/oauth2/auth?client_id=%s&redirect_uri=%s&response_type=code&scope=openid email", providerConfig.ClientID, providerConfig.RedirectURL)
+	case models.PROVIDER_APPLE:
+		authURL = fmt.Sprintf("https://appleid.apple.com/auth/authorize?client_id=%s&redirect_uri=%s&response_type=code&scope=name email", providerConfig.ClientID, providerConfig.RedirectURL)
+	default:
+		logs["error"]["providerConfigMessage"] = "provider not supported"
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+
+	http.Redirect(w, r, authURL, http.StatusFound)
+}
+
+func (h *Handler) AuthWebCallbackHandler(w http.ResponseWriter, r *http.Request, provider string) {
+	logs := make(map[string]map[string]any)
+	logs["info"] = make(map[string]any)
+	logs["error"] = make(map[string]any)
+	logs["info"]["handler"] = "AuthWebCallbackHandler"
+	logs["info"]["provider"] = provider
+
+	// Извлечение параметров из запроса
+	query := r.URL.Query()
+	logs["info"]["query"] = query
+
+	// Выводим информацию о запросе в логах
+	util.LogInfoMap(logs)
+
+	// Отправляем успешный ответ с информацией о запросе
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]any{
+		"message": "Callback received successfully",
+		"query":   query,
+	})
 }
 
 func (h *Handler) RefreshTokenHandler(w http.ResponseWriter, r *http.Request) {
@@ -564,6 +621,7 @@ func getProviderConfig(provider string, cfg config.Authorization) (providers.Pro
 			TokenURL:     cfg.Google.TokenURL,
 			UserInfoURL:  cfg.Google.UserInfoURL,
 			RevokeURL:    cfg.Google.RevokeURL,
+			RedirectURL:  cfg.Google.RedirectURL,
 		}, nil
 	case models.PROVIDER_FB:
 		return providers.ProviderConfig{
@@ -583,8 +641,101 @@ func getProviderConfig(provider string, cfg config.Authorization) (providers.Pro
 			TeamID:       cfg.Apple.TeamID,
 			SecretPath:   cfg.Apple.SecretPath,
 			KeyID:        cfg.Apple.KeyID,
+			RedirectURL:  cfg.Apple.RedirectURL,
 		}, nil
 	default:
 		return providers.ProviderConfig{}, fmt.Errorf("unsupported provider: %s", provider)
 	}
+}
+
+func (h *Handler) AppleCallbackHandler(w http.ResponseWriter, r *http.Request) {
+	logs := make(map[string]map[string]any)
+	logs["info"] = make(map[string]any)
+	logs["error"] = make(map[string]any)
+	logs["info"]["handler"] = "AppleCallbackHandler"
+
+	// Извлечение данных из запроса
+	if err := r.ParseForm(); err != nil {
+		logs["error"]["parseForm"] = err.Error()
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	code := r.FormValue("code")
+	logs["info"]["code"] = code
+
+	// Здесь можно добавить логику для обмена кода на токен
+
+	// Временно отправляем успешный ответ
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("Callback received successfully"))
+}
+
+func (h *Handler) GoogleCallbackHandler(w http.ResponseWriter, r *http.Request) {
+	response := map[string]string{}
+	logs := make(map[string]map[string]any)
+	logs["info"] = make(map[string]any)
+	logs["error"] = make(map[string]any)
+	logs["info"]["handler"] = "GoogleCallbackHandler"
+
+	defer func() {
+		logs["info"]["response"] = response
+		util.LogInfoMap(logs)
+		if len(logs["error"]) == 0 {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			json.NewEncoder(w).Encode(response)
+			return
+		}
+
+		w.WriteHeader(http.StatusBadRequest)
+	}()
+
+	if err := r.ParseForm(); err != nil {
+		logs["error"]["parseForm"] = err.Error()
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	code := r.FormValue("code")
+	logs["info"]["code"] = code
+
+	expiresIn := 3600 // TODO взять из ответа
+
+	// Генерация JWT токена с использованием expiresIn
+	jwtToken, _, err := util.GenerateJWT(123, "google", time.Now().Add(time.Second*time.Duration(expiresIn)).Unix(), "example_device_uuid")
+	if err != nil {
+		logs["error"]["GenerateJWT"] = err.Error()
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	response = map[string]string{
+		"jwt_token": jwtToken,
+	}
+}
+
+func (h *Handler) GoogleAuthButtonHandler(w http.ResponseWriter, r *http.Request) {
+	logs := make(map[string]map[string]any)
+	logs["info"] = make(map[string]any)
+	logs["error"] = make(map[string]any)
+	logs["info"]["handler"] = "GoogleAuthButtonHandler"
+
+	// HTML-код для кнопки авторизации Google
+	htmlContent := `<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Google Auth</title>
+</head>
+<body>
+	<a href="/auth/web/google" style="display: inline-block; background-color: #4285F4; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Sign in with Google</a>
+</body>
+</html>`
+
+	// Устанавливаем заголовки и отправляем HTML-контент
+	w.Header().Set("Content-Type", "text/html")
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte(htmlContent))
 }
