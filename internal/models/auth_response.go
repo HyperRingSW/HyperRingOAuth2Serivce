@@ -11,3 +11,7 @@ type AuthResponse struct {
 	JWTToken  string `json:"token"` //jwt token
 	ExpiresAt int64  `json:"expiresAt"`
 }
+
+var AuthWebGoogleBodyRequest struct {
+	IdToken string `json:"idToken"`
+}

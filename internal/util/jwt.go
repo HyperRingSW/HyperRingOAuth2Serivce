@@ -1,9 +1,14 @@
 package util
 
 import (
+	"encoding/json"
 	"errors"
-	"github.com/golang-jwt/jwt/v5"
 	"strings"
+	"time"
+
+	"encoding/base64"
+
+	"github.com/golang-jwt/jwt/v5"
 )
 
 var jwtSecret = []byte("86194778010")
@@ -48,4 +53,47 @@ func ParseJWT(tokenString string, requestPath string) (jwt.MapClaims, error) {
 	}
 
 	return nil, errors.New("invalid token")
+}
+
+// DecodeJWT
+func DecodeJWT(tokenString string) (map[string]interface{}, error) {
+	// Разделяем токен на части
+	parts := strings.Split(tokenString, ".")
+	if len(parts) != 3 {
+		return nil, errors.New("invalid token format")
+	}
+
+	// Декодируем header
+	headerBytes, err := base64.RawURLEncoding.DecodeString(parts[0])
+	if err != nil {
+		return nil, err
+	}
+
+	// Декодируем payload
+	payloadBytes, err := base64.RawURLEncoding.DecodeString(parts[1])
+	if err != nil {
+		return nil, err
+	}
+
+	// Парсим JSON
+	var header, payload map[string]interface{}
+	if err := json.Unmarshal(headerBytes, &header); err != nil {
+		return nil, err
+	}
+	if err := json.Unmarshal(payloadBytes, &payload); err != nil {
+		return nil, err
+	}
+
+	// Форматируем время, если оно есть
+	if exp, ok := payload["exp"].(float64); ok {
+		payload["exp"] = time.Unix(int64(exp), 0).Format(time.RFC3339)
+	}
+	if iat, ok := payload["iat"].(float64); ok {
+		payload["iat"] = time.Unix(int64(iat), 0).Format(time.RFC3339)
+	}
+
+	return map[string]interface{}{
+		"header":  header,
+		"payload": payload,
+	}, nil
 }

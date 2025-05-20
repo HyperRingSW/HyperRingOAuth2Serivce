@@ -51,32 +51,10 @@ func RegisterRoutes(router *mux.Router, handler dependency.Handler, middlewares 
 		handler.RingHandler().UnlinkRingHandler(w, r)
 	})).Methods("DELETE")
 
-	router.HandleFunc("/auth/web/{provider}", func(w http.ResponseWriter, r *http.Request) {
-		pr := mux.Vars(r)
-		provider := pr["provider"]
-		handler.AuthHandler().AuthWebHandler(w, r, provider)
-	}).Methods("GET")
-
-	router.HandleFunc("/auth/web/{provider}/callback", func(w http.ResponseWriter, r *http.Request) {
-		pr := mux.Vars(r)
-		provider := pr["provider"]
-		handler.AuthHandler().AuthWebCallbackHandler(w, r, provider)
-	}).Methods("POST")
-
-	// Маршрут для обработки callback от Apple
-	router.HandleFunc("/auth/apple/callback", func(w http.ResponseWriter, r *http.Request) {
-		handler.AuthHandler().AppleCallbackHandler(w, r)
-	}).Methods("POST")
-
 	// Маршрут для обработки callback от Google
-	router.HandleFunc("/auth/google/callback", func(w http.ResponseWriter, r *http.Request) {
+	router.HandleFunc("/auth/web/google", func(w http.ResponseWriter, r *http.Request) {
 		handler.AuthHandler().GoogleCallbackHandler(w, r)
-	}).Methods("GET")
-
-	// Маршрут для отображения кнопки авторизации Google
-	router.HandleFunc("/auth/google/button", func(w http.ResponseWriter, r *http.Request) {
-		handler.AuthHandler().GoogleAuthButtonHandler(w, r)
-	}).Methods("GET")
+	}).Methods("POST")
 
 	router.HandleFunc("/swagger", func(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, "internal/public/swagger.html")

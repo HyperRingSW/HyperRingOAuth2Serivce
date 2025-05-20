@@ -209,62 +209,6 @@ func (h *Handler) AuthUserHandler(w http.ResponseWriter, r *http.Request, provid
 	return
 }
 
-func (h *Handler) AuthWebHandler(w http.ResponseWriter, r *http.Request, provider string) {
-	logs := make(map[string]map[string]any)
-	logs["info"] = make(map[string]any)
-	logs["error"] = make(map[string]any)
-	logs["info"]["handler"] = "AuthWebHandler"
-	logs["info"]["provider"] = provider
-
-	// Get provider config
-	providerConfig, err := getProviderConfig(provider, h.cfg.Authorization)
-	if err != nil {
-		logs["error"]["providerConfigMessage"] = fmt.Sprintf("error getting provider config, provider and confing: %s, %w", provider, h.cfg.Authorization)
-		logs["error"]["providerConfigError"] = err.Error()
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
-	logs["info"]["providerConfig"] = providerConfig
-
-	// Возвращаю строку URL для авторизации Google обратно в код
-	var authURL string
-	switch provider {
-	case models.PROVIDER_GOOGLE:
-		authURL = fmt.Sprintf("https://accounts.google.com/o/oauth2/auth?client_id=%s&redirect_uri=%s&response_type=code&scope=openid email", providerConfig.ClientID, providerConfig.RedirectURL)
-	case models.PROVIDER_APPLE:
-		authURL = fmt.Sprintf("https://appleid.apple.com/auth/authorize?client_id=%s&redirect_uri=%s&response_type=code&scope=name email", providerConfig.ClientID, providerConfig.RedirectURL)
-	default:
-		logs["error"]["providerConfigMessage"] = "provider not supported"
-		w.WriteHeader(http.StatusNotFound)
-		return
-	}
-
-	http.Redirect(w, r, authURL, http.StatusFound)
-}
-
-func (h *Handler) AuthWebCallbackHandler(w http.ResponseWriter, r *http.Request, provider string) {
-	logs := make(map[string]map[string]any)
-	logs["info"] = make(map[string]any)
-	logs["error"] = make(map[string]any)
-	logs["info"]["handler"] = "AuthWebCallbackHandler"
-	logs["info"]["provider"] = provider
-
-	// Извлечение параметров из запроса
-	query := r.URL.Query()
-	logs["info"]["query"] = query
-
-	// Выводим информацию о запросе в логах
-	util.LogInfoMap(logs)
-
-	// Отправляем успешный ответ с информацией о запросе
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]any{
-		"message": "Callback received successfully",
-		"query":   query,
-	})
-}
-
 func (h *Handler) RefreshTokenHandler(w http.ResponseWriter, r *http.Request) {
 	response := models.AuthResponse{}
 	logs := make(map[string]map[string]any)
@@ -648,35 +592,13 @@ func getProviderConfig(provider string, cfg config.Authorization) (providers.Pro
 	}
 }
 
-func (h *Handler) AppleCallbackHandler(w http.ResponseWriter, r *http.Request) {
-	logs := make(map[string]map[string]any)
-	logs["info"] = make(map[string]any)
-	logs["error"] = make(map[string]any)
-	logs["info"]["handler"] = "AppleCallbackHandler"
-
-	// Извлечение данных из запроса
-	if err := r.ParseForm(); err != nil {
-		logs["error"]["parseForm"] = err.Error()
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
-
-	code := r.FormValue("code")
-	logs["info"]["code"] = code
-
-	// Здесь можно добавить логику для обмена кода на токен
-
-	// Временно отправляем успешный ответ
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("Callback received successfully"))
-}
-
 func (h *Handler) GoogleCallbackHandler(w http.ResponseWriter, r *http.Request) {
-	response := map[string]string{}
+	response := models.AuthResponse{}
 	logs := make(map[string]map[string]any)
 	logs["info"] = make(map[string]any)
 	logs["error"] = make(map[string]any)
 	logs["info"]["handler"] = "GoogleCallbackHandler"
+	var expiresAt time.Time
 
 	defer func() {
 		logs["info"]["response"] = response
@@ -691,51 +613,158 @@ func (h *Handler) GoogleCallbackHandler(w http.ResponseWriter, r *http.Request) 
 		w.WriteHeader(http.StatusBadRequest)
 	}()
 
-	if err := r.ParseForm(); err != nil {
+	/*if err := r.ParseForm(); err != nil {
 		logs["error"]["parseForm"] = err.Error()
 		w.WriteHeader(http.StatusBadRequest)
 		return
-	}
+	}*/
 
-	code := r.FormValue("code")
-	logs["info"]["code"] = code
+	body := models.AuthWebGoogleBodyRequest
 
-	expiresIn := 3600 // TODO взять из ответа
-
-	// Генерация JWT токена с использованием expiresIn
-	jwtToken, _, err := util.GenerateJWT(123, "google", time.Now().Add(time.Second*time.Duration(expiresIn)).Unix(), "example_device_uuid")
-	if err != nil {
-		logs["error"]["GenerateJWT"] = err.Error()
-		w.WriteHeader(http.StatusInternalServerError)
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		logs["error"]["bodyRequestMsg"] = err.Error()
+		logs["error"]["bodyRequest"] = body
+		//w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
-	response = map[string]string{
-		"jwt_token": jwtToken,
+	logs["info"]["idToken"] = body.IdToken
+	provider := "google"
+
+	// Get provider config (URL user info, client id and etc)
+	providerConfig, err := getProviderConfig(provider, h.cfg.Authorization)
+	if err != nil {
+		logs["error"]["providerConfigMessage"] = fmt.Sprintf("error getting provider config, provider and confing: %s, %s", provider, h.cfg.Authorization)
+		logs["error"]["providerConfigError"] = err.Error()
+		//w.WriteHeader(http.StatusNotFound)
+		return
 	}
-}
+	logs["info"]["providerConfig"] = providerConfig
 
-func (h *Handler) GoogleAuthButtonHandler(w http.ResponseWriter, r *http.Request) {
-	logs := make(map[string]map[string]any)
-	logs["info"] = make(map[string]any)
-	logs["error"] = make(map[string]any)
-	logs["info"]["handler"] = "GoogleAuthButtonHandler"
+	var claims map[string]interface{}
 
-	// HTML-код для кнопки авторизации Google
-	htmlContent := `<!DOCTYPE html>
-<html lang="en">
-<head>
-	<meta charset="UTF-8">
-	<meta name="viewport" content="width=device-width, initial-scale=1.0">
-	<title>Google Auth</title>
-</head>
-<body>
-	<a href="/auth/web/google" style="display: inline-block; background-color: #4285F4; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Sign in with Google</a>
-</body>
-</html>`
+	switch strings.ToLower(provider) {
+	case models.PROVIDER_GOOGLE:
+		if body.IdToken == "" {
+			logs["error"]["idTokenRequired"] = "idToken is required"
+			//w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		claims, err = providers.VerifyGoogleIDToken(body.IdToken, providerConfig)
+		if err != nil {
+			logs["error"]["providerConfigMessage"] = fmt.Sprintf("error getting provider config, provider and confing: %s, %+v", provider, providerConfig)
+			logs["error"]["VerifyGoogleIDToken"] = err.Error()
+			//w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		logs["info"]["claims"] = claims
 
-	// Устанавливаем заголовки и отправляем HTML-контент
-	w.Header().Set("Content-Type", "text/html")
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(htmlContent))
+	case models.PROVIDER_APPLE:
+		if body.IdToken == "" {
+			logs["error"]["idTokenRequired"] = "idToken is required"
+			//w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		claims, err = providers.VerifyAppleIdentityToken(body.IdToken, providerConfig)
+		if err != nil {
+			logs["error"]["VerifyAppleIdentityTokenParams"] = fmt.Sprintf("body.IdToken, providerConfig: %s, %w,", body.IdToken, providerConfig)
+			logs["error"]["VerifyAppleIdentityToken"] = err.Error()
+			//w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		logs["info"]["claims"] = claims
+
+	default:
+		logs["error"]["providerConfigMessage"] = "provider not supported"
+		//w.WriteHeader(http.StatusNotFound)
+		return
+	}
+
+	// get email
+	email, ok := claims["email"].(string)
+	if !ok || email == "" {
+		logs["error"]["emailRequired"] = "email is required"
+		//w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	// get user name
+	name, _ := claims["name"].(string)
+
+	// Save claims JSON
+	claimsJSON, err := json.Marshal(claims)
+	if err != nil {
+		logs["error"]["claimsMarshalMsg"] = err.Error()
+		//w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	logs["info"]["claimsJSON"] = string(claimsJSON)
+
+	// Create user
+	userAuth := models.UserAuth{
+		Email:     email,
+		Name:      name,
+		Data:      string(claimsJSON),
+		CreatedAt: time.Now(),
+	}
+	user, err := h.repo.UserRepository().CreateOrUpdateUser(userAuth)
+	if err != nil {
+		logs["error"]["CreateUserParams"] = fmt.Sprintf("userAuth: %w,", userAuth)
+		logs["error"]["CreateUser"] = err.Error()
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	logs["info"]["user"] = user
+
+	if exp, ok := claims["exp"].(float64); ok {
+		expiresAt = time.Unix(int64(exp), 0)
+	} else {
+		expiresAt = time.Now().Add(time.Hour)
+	}
+
+	if h.cfg.App.CustomExpiresTime {
+		expiresAt = time.Now().Add(time.Second * time.Duration(h.cfg.App.ExpiresTime))
+	}
+
+	DeviceUUID := uuid.New().String()
+
+	// Create token
+	newToken := models.Token{
+		UserID:       user.ID,
+		Provider:     provider,
+		DeviceUUID:   DeviceUUID,
+		AccessToken:  body.IdToken, //TODO
+		RefreshToken: body.IdToken, //TODO
+		IDToken:      body.IdToken,
+		ExpirationIn: int(expiresAt.Sub(time.Now()).Seconds()),
+		ExpiresAt:    expiresAt,
+		Data:         string(claimsJSON),
+	}
+
+	logs["info"]["newToken"] = newToken
+
+	savedToken, err := h.repo.TokenRepository().CreateOrUpdateToken(newToken)
+	if err != nil {
+		logs["error"]["CreateOrUpdateTokenParams"] = fmt.Sprintf("newToken: %w,", newToken)
+		logs["error"]["SaveToken"] = err.Error()
+		//w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	logs["info"]["savedToken"] = savedToken
+
+	// Generate JWT token
+	jwtToken, _, err := util.GenerateJWT(user.ID, provider, expiresAt.Unix(), DeviceUUID)
+	if err != nil {
+		logs["error"]["GenerateJWTParams"] = fmt.Sprintf("user.ID, provider, expiresAt.Unix(), body.DeviceUUID: %s, %s, %w, %s", user.ID, provider, expiresAt.Unix(), DeviceUUID)
+		logs["error"]["GenerateJWT"] = err.Error()
+		//w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	logs["info"]["jwtToken"] = jwtToken
+
+	response = models.AuthResponse{
+		JWTToken:  jwtToken,
+		ExpiresAt: expiresAt.Unix(),
+	}
+
+	return
 }
