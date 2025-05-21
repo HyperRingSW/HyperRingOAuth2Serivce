@@ -43,12 +43,26 @@ type OAuthProviderConfig struct {
 	ClientSecret string `env:"OAUTH_CLIENT_SECRET" env-default:""`
 }
 
+type WebOAuthProviderConfig struct {
+	ClientID     string `env:"OAUTH_CLIENT_ID" env-default:""`
+	ClientSecret string `env:"OAUTH_CLIENT_SECRET" env-default:""`
+}
+
 type MFAConfig struct {
 	Enabled bool `env:"MFA_ENABLED" env-default:"false"`
 }
 
 type GoogleAuthConfig struct {
 	OAuthProviderConfig
+	TokenURL    string `env:"OAUTH_TOKEN_URL" env-default:"https://oauth2.googleapis.com/token"`
+	UserInfoURL string `env:"OAUTH_USER_INFO_URL" env-default:"https://www.googleapis.com/oauth2/v3/userinfo"`
+	RevokeURL   string `env:"OAUTH_REVOKE_URL" env-default:"https://oauth2.googleapis.com/revoke"`
+	RedirectURL string `env:"OAUTH_REDIRECT_URL" env-default:"http://localhost:8090/auth/google/callback"`
+	SecretKey   string `env:"OAUTH_SECRET_KEY" env-default:"http://localhost:8090/auth/google/callback"`
+}
+
+type WebGoogleAuthConfig struct {
+	WebOAuthProviderConfig
 	TokenURL    string `env:"OAUTH_TOKEN_URL" env-default:"https://oauth2.googleapis.com/token"`
 	UserInfoURL string `env:"OAUTH_USER_INFO_URL" env-default:"https://www.googleapis.com/oauth2/v3/userinfo"`
 	RevokeURL   string `env:"OAUTH_REVOKE_URL" env-default:"https://oauth2.googleapis.com/revoke"`
@@ -75,10 +89,11 @@ type FacebookAuthConfig struct {
 	RevokeURL   string `env:"OAUTH_REVOKE_URL" env-default:"https://www.googleapis.com/oauth2/v3/userinfo"`
 }
 type Authorization struct {
-	JWTSecret string             `env:"JWT_SECRET" env-default:"86194778010"`
-	Google    GoogleAuthConfig   `envPrefix:"GOOGLE_"`
-	Apple     AppleAuthConfig    `envPrefix:"APPLE_"`
-	Facebook  FacebookAuthConfig `envPrefix:"FACEBOOK_"`
+	JWTSecret string              `env:"JWT_SECRET" env-default:"86194778010"`
+	Google    GoogleAuthConfig    `envPrefix:"GOOGLE_"`
+	WebGoogle WebGoogleAuthConfig `envPrefix:"WEB_GOOGLE_"`
+	Apple     AppleAuthConfig     `envPrefix:"APPLE_"`
+	Facebook  FacebookAuthConfig  `envPrefix:"FACEBOOK_"`
 }
 
 type Config struct {

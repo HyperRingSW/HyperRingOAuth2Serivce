@@ -53,7 +53,7 @@ func RegisterRoutes(router *mux.Router, handler dependency.Handler, middlewares 
 
 	// Маршрут для обработки callback от Google
 	router.HandleFunc("/auth/web/google", func(w http.ResponseWriter, r *http.Request) {
-		handler.AuthHandler().GoogleCallbackHandler(w, r)
+		handler.AuthHandler().WebGoogleHandler(w, r)
 	}).Methods("POST")
 
 	router.HandleFunc("/swagger", func(w http.ResponseWriter, r *http.Request) {

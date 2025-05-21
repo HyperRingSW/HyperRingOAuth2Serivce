@@ -567,6 +567,15 @@ func getProviderConfig(provider string, cfg config.Authorization) (providers.Pro
 			RevokeURL:    cfg.Google.RevokeURL,
 			RedirectURL:  cfg.Google.RedirectURL,
 		}, nil
+	case models.WEB_PROVIDER_GOOGLE:
+		return providers.ProviderConfig{
+			ClientID:     cfg.WebGoogle.ClientID,
+			ClientSecret: cfg.WebGoogle.ClientSecret,
+			TokenURL:     cfg.WebGoogle.TokenURL,
+			UserInfoURL:  cfg.WebGoogle.UserInfoURL,
+			RevokeURL:    cfg.WebGoogle.RevokeURL,
+			RedirectURL:  cfg.WebGoogle.RedirectURL,
+		}, nil
 	case models.PROVIDER_FB:
 		return providers.ProviderConfig{
 			ClientID:     cfg.Facebook.ClientID,
@@ -592,12 +601,12 @@ func getProviderConfig(provider string, cfg config.Authorization) (providers.Pro
 	}
 }
 
-func (h *Handler) GoogleCallbackHandler(w http.ResponseWriter, r *http.Request) {
+func (h *Handler) WebGoogleHandler(w http.ResponseWriter, r *http.Request) {
 	response := models.AuthResponse{}
 	logs := make(map[string]map[string]any)
 	logs["info"] = make(map[string]any)
 	logs["error"] = make(map[string]any)
-	logs["info"]["handler"] = "GoogleCallbackHandler"
+	logs["info"]["handler"] = "WebGoogleHandler"
 	var expiresAt time.Time
 
 	defer func() {
@@ -629,7 +638,7 @@ func (h *Handler) GoogleCallbackHandler(w http.ResponseWriter, r *http.Request) 
 	}
 
 	logs["info"]["idToken"] = body.IdToken
-	provider := "google"
+	provider := models.WEB_PROVIDER_GOOGLE
 
 	// Get provider config (URL user info, client id and etc)
 	providerConfig, err := getProviderConfig(provider, h.cfg.Authorization)
