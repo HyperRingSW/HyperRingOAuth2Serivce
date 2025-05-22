@@ -639,7 +639,6 @@ func (h *Handler) WebGoogleHandler(w http.ResponseWriter, r *http.Request) {
 
 	logs["info"]["idToken"] = body.IdToken
 	provider := models.WEB_PROVIDER_GOOGLE
-
 	// Get provider config (URL user info, client id and etc)
 	providerConfig, err := getProviderConfig(provider, h.cfg.Authorization)
 	if err != nil {
@@ -654,6 +653,20 @@ func (h *Handler) WebGoogleHandler(w http.ResponseWriter, r *http.Request) {
 
 	switch strings.ToLower(provider) {
 	case models.PROVIDER_GOOGLE:
+		if body.IdToken == "" {
+			logs["error"]["idTokenRequired"] = "idToken is required"
+			//w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		claims, err = providers.VerifyGoogleIDToken(body.IdToken, providerConfig)
+		if err != nil {
+			logs["error"]["providerConfigMessage"] = fmt.Sprintf("error getting provider config, provider and confing: %s, %+v", provider, providerConfig)
+			logs["error"]["VerifyGoogleIDToken"] = err.Error()
+			//w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		logs["info"]["claims"] = claims
+	case models.WEB_PROVIDER_GOOGLE:
 		if body.IdToken == "" {
 			logs["error"]["idTokenRequired"] = "idToken is required"
 			//w.WriteHeader(http.StatusBadRequest)
