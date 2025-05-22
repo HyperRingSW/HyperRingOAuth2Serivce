@@ -10,4 +10,5 @@ type ProviderConfig struct {
 	TeamID       string //for apple
 	SecretPath   string //for apple
 	KeyID        string //for apple
+	RedirectURL  string
 }

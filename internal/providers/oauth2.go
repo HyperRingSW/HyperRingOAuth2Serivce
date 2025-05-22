@@ -6,13 +6,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/golang-jwt/jwt/v5"
 	"io"
 	"math/big"
 	"net/http"
 	"oauth2-server/internal/models"
 	"oauth2-server/internal/util"
 	"time"
+
+	"github.com/golang-jwt/jwt/v5"
 )
 
 type TokenResponse struct {
@@ -120,8 +121,21 @@ func fetchCerts(url string) ([]map[string]interface{}, error) {
 
 // VerifyGoogleIDToken checking Google id_token, using public keys Google, and retrieve claims.
 func VerifyGoogleIDToken(idToken string, providerConfig ProviderConfig) (map[string]interface{}, error) {
+
+	logs := make(map[string]map[string]any)
+	logs["info"] = make(map[string]any)
+	logs["error"] = make(map[string]any)
+	logs["info"]["method"] = "VerifyGoogleIDToken"
+	logs["info"]["idToken"] = idToken
+	logs["info"]["providerConfig"] = providerConfig
+
+	defer func() {
+		util.LogInfoMap(logs)
+	}()
+
 	certs, err := fetchCerts("https://www.googleapis.com/oauth2/v3/certs")
 	if err != nil {
+		logs["error"]["fetchCerts"] = fmt.Sprintf("VerifyGoogleIDToken failed to fetch certs: %s", err.Error())
 		return nil, err
 	}
 
@@ -129,11 +143,13 @@ func VerifyGoogleIDToken(idToken string, providerConfig ProviderConfig) (map[str
 	parser := new(jwt.Parser)
 	token, _, err := parser.ParseUnverified(idToken, jwt.MapClaims{})
 	if err != nil {
+		logs["error"]["parseToken"] = fmt.Sprintf("VerifyGoogleIDToken failed to parse token: %s", err.Error())
 		return nil, fmt.Errorf("failed parsing unverified token: %v", err)
 	}
 
 	kid, ok := token.Header["kid"].(string)
 	if !ok {
+		logs["error"]["kid"] = "VerifyGoogleIDToken kid header not found"
 		return nil, errors.New("kid header not found")
 	}
 
@@ -146,93 +162,90 @@ func VerifyGoogleIDToken(idToken string, providerConfig ProviderConfig) (map[str
 		}
 	}
 	if jwk == nil {
+		logs["error"]["jwk"] = "VerifyGoogleIDToken error fetching google jwk"
 		return nil, errors.New("error fetching google jwk")
 	}
+	logs["info"]["jwk"] = jwk
 
 	pubKey, err := ParseRSAPublicKeyFromJWK(jwk)
 	if err != nil {
+		logs["error"]["ParseRSAPublicKeyFromJWK"] = fmt.Sprintf("VerifyGoogleIDToken failed getting public key: %s", err.Error())
 		return nil, fmt.Errorf("failed getting public key: %v", err)
 	}
 
 	// Get and check token, using public key.
 	parsedToken, err := jwt.Parse(idToken, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodRSA); !ok {
+			logs["error"]["parsedTokenSing"] = fmt.Sprintf("VerifyGoogleIDToken incorrect sign method: %v", token.Header["alg"])
 			return nil, fmt.Errorf("incorrect sign method: %v", token.Header["alg"])
 		}
 		return pubKey, nil
 	})
 	if err != nil {
+		logs["error"]["parsedToken"] = fmt.Sprintf("VerifyGoogleIDToken failed token validation: %s", err.Error())
 		return nil, fmt.Errorf("failed token validation: %v", err)
 	}
 	if !parsedToken.Valid {
+		logs["error"]["parsedTokenValid"] = fmt.Sprintf("VerifyGoogleIDToken invalid token")
 		return nil, errors.New("invalid token")
 	}
 
 	claims, ok := parsedToken.Claims.(jwt.MapClaims)
 	if !ok {
+		logs["error"]["parsedTokenClaims"] = fmt.Sprintf("VerifyGoogleIDToken failed to parse claims")
 		return nil, errors.New("cannot parse claims")
 	}
+	logs["info"]["claims"] = claims
 
 	// Others checking: audience и expiration.
 	if aud, ok := claims["aud"].(string); !ok || aud != providerConfig.ClientID {
 		if !ok {
-			util.LogInfo("google audience header not found")
+			logs["error"]["parsedTokenClaimsAUD"] = fmt.Sprintf("VerifyGoogleIDToken audience header not found")
 		}
 		if aud != providerConfig.ClientID {
-			util.LogInfo(fmt.Sprintf("google audience mismatch: %s", aud))
+			logs["error"]["parsedTokenClaimsAUD"] = fmt.Sprintf("VerifyGoogleIDToken audience mismatch. Getting aud: %s", aud)
 		}
 		return nil, errors.New("google invalid audience")
 	}
 	if exp, ok := claims["exp"].(float64); ok && int64(exp) < time.Now().Unix() {
+		logs["info"]["parsedTokenClaimsEXP"] = fmt.Sprintf("VerifyGoogleIDToken expired")
 		return nil, errors.New("google token expired")
 	}
 
 	return claims, nil
 }
 
-// GetFacebookUserInfo obtains user information from Facebook using the access_token and the specified API URL.
-func GetFacebookUserInfo(accessToken string, userInfoURL string) (map[string]interface{}, error) {
-	req, err := http.NewRequest("GET", userInfoURL, nil)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
-	}
-
-	q := req.URL.Query()
-	q.Add("access_token", accessToken)
-	req.URL.RawQuery = q.Encode()
-
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("failed to fetch user info: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("fb user info fetch failed: %s code: %d", resp.Status, resp.StatusCode)
-	}
-
-	var result map[string]interface{}
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return nil, fmt.Errorf("fb failed to decode user info: %w", err)
-	}
-	return result, nil
-}
-
 // VerifyAppleIdentityToken verifies the Apple identity token using Apple's public keys and returns the claims.
 func VerifyAppleIdentityToken(idToken string, providerConfig ProviderConfig) (map[string]interface{}, error) {
+
+	logs := make(map[string]map[string]any)
+	logs["info"] = make(map[string]any)
+	logs["error"] = make(map[string]any)
+	logs["info"]["method"] = "VerifyAppleIdentityToken"
+	logs["info"]["idToken"] = idToken
+	logs["info"]["providerConfig"] = providerConfig
+
+	defer func() {
+		util.LogInfoMap(logs)
+	}()
+
 	certs, err := fetchCerts("https://appleid.apple.com/auth/keys")
 	if err != nil {
 		return nil, err
 	}
+	logs["info"]["certs"] = certs
 
 	parser := new(jwt.Parser)
 	token, _, err := parser.ParseUnverified(idToken, jwt.MapClaims{})
 	if err != nil {
+		logs["error"]["parseToken"] = fmt.Sprintf("VerifyAppleIdentityToken failed to parse token: %s", err.Error())
 		return nil, fmt.Errorf("failed parsing unverified token: %v", err)
 	}
+	logs["info"]["token"] = token
 
 	kid, ok := token.Header["kid"].(string)
 	if !ok {
+		logs["error"]["kid"] = "kid header not found"
 		return nil, errors.New("kid header not found")
 	}
 
@@ -245,66 +258,77 @@ func VerifyAppleIdentityToken(idToken string, providerConfig ProviderConfig) (ma
 		}
 	}
 	if jwk == nil {
+		logs["error"]["jwk"] = fmt.Sprintf("VerifyAppleIdentityToken failed to find jwk")
 		return nil, errors.New("error fetching jwk")
 	}
+	logs["info"]["jwk"] = jwk
 
 	pubKey, err := ParseRSAPublicKeyFromJWK(jwk)
 	if err != nil {
+		logs["error"]["parseToken"] = fmt.Sprintf("VerifyAppleIdentityToken failed to parse public key: %s", err.Error())
 		return nil, fmt.Errorf("error parsing public key: %v", err)
 	}
+	logs["info"]["pubKey"] = pubKey
 
 	// Parse and verify the token.
 	parsedToken, err := jwt.Parse(idToken, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodRSA); !ok {
+			logs["error"]["parsedTokenSign"] = fmt.Sprintf("VerifyAppleIdentityToken incorrect sign method: %v", token.Header["alg"])
 			return nil, fmt.Errorf("incorrect sign method: %v", token.Header["alg"])
 		}
 		return pubKey, nil
 	})
 	if err != nil {
+		logs["error"]["parsedToken"] = fmt.Sprintf("VerifyAppleIdentityToken failed token validation: %s", err.Error())
 		return nil, fmt.Errorf("error token validation: %v", err)
 	}
 	if !parsedToken.Valid {
+		logs["error"]["parsedTokenValid"] = fmt.Sprintf("VerifyAppleIdentityToken invalid token")
 		return nil, errors.New("invalid token")
 	}
 
 	claims, ok := parsedToken.Claims.(jwt.MapClaims)
 	if !ok {
+		logs["error"]["parsedTokenClaims"] = fmt.Sprintf("VerifyAppleIdentityToken failed to parse claims")
 		return nil, errors.New("cannot parse claims")
 	}
 
 	if aud, ok := claims["aud"].(string); !ok || aud != providerConfig.ClientID {
 		if !ok {
-			util.LogInfo("google audience header not found")
+			logs["error"]["parsedTokenAUD"] = fmt.Sprintf("VerifyAppleIdentityToken audience header not found")
 		}
 		if aud != providerConfig.ClientID {
-			util.LogInfo(fmt.Sprintf("google audience mismatch: %s", aud))
+			logs["error"]["parsedTokenAUD"] = fmt.Sprintf("VerifyAppleIdentityToken audience mismatch. Getting aud: %s", aud)
 		}
 		return nil, errors.New("google invalid audience")
 	}
 	if exp, ok := claims["exp"].(float64); ok && int64(exp) < time.Now().Unix() {
+		logs["info"]["parsedTokenClaims"] = fmt.Sprintf("VerifyAppleIdentityToken expired")
 		return nil, errors.New("google token expired")
 	}
 
-	// Other checking: audience и issuer.
+	/*// Other checking: audience и issuer.
 	if aud, ok := claims["aud"].(string); !ok || aud != providerConfig.ClientID {
 		if !ok {
+			logs["error"]["parsedTokenClaims"] = fmt.Sprintf("VerifyAppleIdentityToken audience header not found")
 			util.LogInfo("apple audience header not found")
 		}
 		if aud != providerConfig.ClientID {
 			util.LogInfo(fmt.Sprintf("apple audience mismatch: %s", aud))
 		}
 		return nil, errors.New("invalid audience")
-	}
+	}*/
 	if iss, ok := claims["iss"].(string); !ok || iss != "https://appleid.apple.com" {
 		if !ok {
-			util.LogInfo("apple ISS header not found")
+			logs["error"]["parsedTokenIss"] = fmt.Sprintf("VerifyAppleIdentityToken iss header not found")
 		}
 		if iss != "https://appleid.apple.com" {
-			util.LogInfo(fmt.Sprintf("apple ISS mismatch: %s", iss))
+			logs["error"]["parsedTokenIss"] = fmt.Sprintf("VerifyAppleIdentityToken iss mismatch. Getting iss: %s", iss)
 		}
 		return nil, errors.New("invalid iss")
 	}
 	if exp, ok := claims["exp"].(float64); ok && int64(exp) < time.Now().Unix() {
+		logs["info"]["parsedTokenClaims"] = fmt.Sprintf("VerifyAppleIdentityToken expired")
 		return nil, errors.New("token expired")
 	}
 

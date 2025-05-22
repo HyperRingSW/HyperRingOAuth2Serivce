@@ -3,7 +3,6 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/google/uuid"
 	"io"
 	"net/http"
 	"net/url"
@@ -14,6 +13,8 @@ import (
 	"oauth2-server/internal/util"
 	"strings"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 type authHandler struct {
@@ -33,6 +34,7 @@ func (h *Handler) AuthUserHandler(w http.ResponseWriter, r *http.Request, provid
 	logs["error"] = make(map[string]any)
 	jwtToken := ""
 	var expiresAt time.Time
+
 	defer func() {
 		logs["info"]["response"] = response
 		util.LogInfoMap(logs)
@@ -44,6 +46,7 @@ func (h *Handler) AuthUserHandler(w http.ResponseWriter, r *http.Request, provid
 
 		w.WriteHeader(http.StatusBadRequest)
 	}()
+
 	logs["info"]["handler"] = "AuthUserHandler"
 	logs["info"]["provider"] = provider
 
@@ -562,6 +565,16 @@ func getProviderConfig(provider string, cfg config.Authorization) (providers.Pro
 			TokenURL:     cfg.Google.TokenURL,
 			UserInfoURL:  cfg.Google.UserInfoURL,
 			RevokeURL:    cfg.Google.RevokeURL,
+			RedirectURL:  cfg.Google.RedirectURL,
+		}, nil
+	case models.WEB_PROVIDER_GOOGLE:
+		return providers.ProviderConfig{
+			ClientID:     cfg.WebGoogle.ClientID,
+			ClientSecret: cfg.WebGoogle.ClientSecret,
+			TokenURL:     cfg.WebGoogle.TokenURL,
+			UserInfoURL:  cfg.WebGoogle.UserInfoURL,
+			RevokeURL:    cfg.WebGoogle.RevokeURL,
+			RedirectURL:  cfg.WebGoogle.RedirectURL,
 		}, nil
 	case models.PROVIDER_FB:
 		return providers.ProviderConfig{
@@ -581,8 +594,199 @@ func getProviderConfig(provider string, cfg config.Authorization) (providers.Pro
 			TeamID:       cfg.Apple.TeamID,
 			SecretPath:   cfg.Apple.SecretPath,
 			KeyID:        cfg.Apple.KeyID,
+			RedirectURL:  cfg.Apple.RedirectURL,
 		}, nil
 	default:
 		return providers.ProviderConfig{}, fmt.Errorf("unsupported provider: %s", provider)
 	}
+}
+
+func (h *Handler) WebGoogleHandler(w http.ResponseWriter, r *http.Request) {
+	response := models.AuthResponse{}
+	logs := make(map[string]map[string]any)
+	logs["info"] = make(map[string]any)
+	logs["error"] = make(map[string]any)
+	logs["info"]["handler"] = "WebGoogleHandler"
+	var expiresAt time.Time
+
+	defer func() {
+		logs["info"]["response"] = response
+		util.LogInfoMap(logs)
+		if len(logs["error"]) == 0 {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			json.NewEncoder(w).Encode(response)
+			return
+		}
+
+		w.WriteHeader(http.StatusBadRequest)
+	}()
+
+	/*if err := r.ParseForm(); err != nil {
+		logs["error"]["parseForm"] = err.Error()
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}*/
+
+	body := models.AuthWebGoogleBodyRequest
+
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		logs["error"]["bodyRequestMsg"] = err.Error()
+		logs["error"]["bodyRequest"] = body
+		//w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	logs["info"]["idToken"] = body.IdToken
+	provider := models.WEB_PROVIDER_GOOGLE
+	// Get provider config (URL user info, client id and etc)
+	providerConfig, err := getProviderConfig(provider, h.cfg.Authorization)
+	if err != nil {
+		logs["error"]["providerConfigMessage"] = fmt.Sprintf("error getting provider config, provider and confing: %s, %s", provider, h.cfg.Authorization)
+		logs["error"]["providerConfigError"] = err.Error()
+		//w.WriteHeader(http.StatusNotFound)
+		return
+	}
+	logs["info"]["providerConfig"] = providerConfig
+
+	var claims map[string]interface{}
+
+	switch strings.ToLower(provider) {
+	case models.PROVIDER_GOOGLE:
+		if body.IdToken == "" {
+			logs["error"]["idTokenRequired"] = "idToken is required"
+			//w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		claims, err = providers.VerifyGoogleIDToken(body.IdToken, providerConfig)
+		if err != nil {
+			logs["error"]["providerConfigMessage"] = fmt.Sprintf("error getting provider config, provider and confing: %s, %+v", provider, providerConfig)
+			logs["error"]["VerifyGoogleIDToken"] = err.Error()
+			//w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		logs["info"]["claims"] = claims
+	case models.WEB_PROVIDER_GOOGLE:
+		if body.IdToken == "" {
+			logs["error"]["idTokenRequired"] = "idToken is required"
+			//w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		claims, err = providers.VerifyGoogleIDToken(body.IdToken, providerConfig)
+		if err != nil {
+			logs["error"]["providerConfigMessage"] = fmt.Sprintf("error getting provider config, provider and confing: %s, %+v", provider, providerConfig)
+			logs["error"]["VerifyGoogleIDToken"] = err.Error()
+			//w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		logs["info"]["claims"] = claims
+
+	case models.PROVIDER_APPLE:
+		if body.IdToken == "" {
+			logs["error"]["idTokenRequired"] = "idToken is required"
+			//w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		claims, err = providers.VerifyAppleIdentityToken(body.IdToken, providerConfig)
+		if err != nil {
+			logs["error"]["VerifyAppleIdentityTokenParams"] = fmt.Sprintf("body.IdToken, providerConfig: %s, %w,", body.IdToken, providerConfig)
+			logs["error"]["VerifyAppleIdentityToken"] = err.Error()
+			//w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		logs["info"]["claims"] = claims
+
+	default:
+		logs["error"]["providerConfigMessage"] = "provider not supported"
+		//w.WriteHeader(http.StatusNotFound)
+		return
+	}
+
+	// get email
+	email, ok := claims["email"].(string)
+	if !ok || email == "" {
+		logs["error"]["emailRequired"] = "email is required"
+		//w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	// get user name
+	name, _ := claims["name"].(string)
+
+	// Save claims JSON
+	claimsJSON, err := json.Marshal(claims)
+	if err != nil {
+		logs["error"]["claimsMarshalMsg"] = err.Error()
+		//w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	logs["info"]["claimsJSON"] = string(claimsJSON)
+
+	// Create user
+	userAuth := models.UserAuth{
+		Email:     email,
+		Name:      name,
+		Data:      string(claimsJSON),
+		CreatedAt: time.Now(),
+	}
+	user, err := h.repo.UserRepository().CreateOrUpdateUser(userAuth)
+	if err != nil {
+		logs["error"]["CreateUserParams"] = fmt.Sprintf("userAuth: %w,", userAuth)
+		logs["error"]["CreateUser"] = err.Error()
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+	logs["info"]["user"] = user
+
+	if exp, ok := claims["exp"].(float64); ok {
+		expiresAt = time.Unix(int64(exp), 0)
+	} else {
+		expiresAt = time.Now().Add(time.Hour)
+	}
+
+	if h.cfg.App.CustomExpiresTime {
+		expiresAt = time.Now().Add(time.Second * time.Duration(h.cfg.App.ExpiresTime))
+	}
+
+	DeviceUUID := uuid.New().String()
+
+	// Create token
+	newToken := models.Token{
+		UserID:       user.ID,
+		Provider:     provider,
+		DeviceUUID:   DeviceUUID,
+		AccessToken:  body.IdToken, //TODO
+		RefreshToken: body.IdToken, //TODO
+		IDToken:      body.IdToken,
+		ExpirationIn: int(expiresAt.Sub(time.Now()).Seconds()),
+		ExpiresAt:    expiresAt,
+		Data:         string(claimsJSON),
+	}
+
+	logs["info"]["newToken"] = newToken
+
+	savedToken, err := h.repo.TokenRepository().CreateOrUpdateToken(newToken)
+	if err != nil {
+		logs["error"]["CreateOrUpdateTokenParams"] = fmt.Sprintf("newToken: %w,", newToken)
+		logs["error"]["SaveToken"] = err.Error()
+		//w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	logs["info"]["savedToken"] = savedToken
+
+	// Generate JWT token
+	jwtToken, _, err := util.GenerateJWT(user.ID, provider, expiresAt.Unix(), DeviceUUID)
+	if err != nil {
+		logs["error"]["GenerateJWTParams"] = fmt.Sprintf("user.ID, provider, expiresAt.Unix(), body.DeviceUUID: %s, %s, %w, %s", user.ID, provider, expiresAt.Unix(), DeviceUUID)
+		logs["error"]["GenerateJWT"] = err.Error()
+		//w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	logs["info"]["jwtToken"] = jwtToken
+
+	response = models.AuthResponse{
+		JWTToken:  jwtToken,
+		ExpiresAt: expiresAt.Unix(),
+	}
+
+	return
 }

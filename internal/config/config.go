@@ -2,9 +2,10 @@ package config
 
 import (
 	"fmt"
+	"os"
+
 	"github.com/caarlos0/env/v9"
 	"github.com/joho/godotenv"
-	"os"
 )
 
 const (
@@ -21,6 +22,7 @@ type AppConfig struct {
 	DemoMode          bool   `env:"DEMO_MODE" env-default:"false"`
 	AnonymizePhrase   string `env:"ANONYMIZE_PHRASE" env-default:"delete"`
 	DeleteMode        string `env:"DELETE_MODE" env-default:"soft"`
+	RedirectURL       string `env:"REDIRECT_URL" env-default:"http://localhost:8090/auth/callback"`
 }
 
 type OAuht2Config struct {
@@ -41,6 +43,11 @@ type OAuthProviderConfig struct {
 	ClientSecret string `env:"OAUTH_CLIENT_SECRET" env-default:""`
 }
 
+type WebOAuthProviderConfig struct {
+	ClientID     string `env:"OAUTH_CLIENT_ID" env-default:""`
+	ClientSecret string `env:"OAUTH_CLIENT_SECRET" env-default:""`
+}
+
 type MFAConfig struct {
 	Enabled bool `env:"MFA_ENABLED" env-default:"false"`
 }
@@ -50,6 +57,17 @@ type GoogleAuthConfig struct {
 	TokenURL    string `env:"OAUTH_TOKEN_URL" env-default:"https://oauth2.googleapis.com/token"`
 	UserInfoURL string `env:"OAUTH_USER_INFO_URL" env-default:"https://www.googleapis.com/oauth2/v3/userinfo"`
 	RevokeURL   string `env:"OAUTH_REVOKE_URL" env-default:"https://oauth2.googleapis.com/revoke"`
+	RedirectURL string `env:"OAUTH_REDIRECT_URL" env-default:"http://localhost:8090/auth/google/callback"`
+	SecretKey   string `env:"OAUTH_SECRET_KEY" env-default:"http://localhost:8090/auth/google/callback"`
+}
+
+type WebGoogleAuthConfig struct {
+	WebOAuthProviderConfig
+	TokenURL    string `env:"OAUTH_TOKEN_URL" env-default:"https://oauth2.googleapis.com/token"`
+	UserInfoURL string `env:"OAUTH_USER_INFO_URL" env-default:"https://www.googleapis.com/oauth2/v3/userinfo"`
+	RevokeURL   string `env:"OAUTH_REVOKE_URL" env-default:"https://oauth2.googleapis.com/revoke"`
+	RedirectURL string `env:"OAUTH_REDIRECT_URL" env-default:"http://localhost:8090/auth/google/callback"`
+	SecretKey   string `env:"OAUTH_SECRET_KEY" env-default:"http://localhost:8090/auth/google/callback"`
 }
 
 type AppleAuthConfig struct {
@@ -60,6 +78,8 @@ type AppleAuthConfig struct {
 	TeamID      string `env:"OAUTH_TEAM_ID" env-default:""`
 	SecretPath  string `env:"OAUTH_CLIENT_SECRET_PATH" env-default:""`
 	KeyID       string `env:"OAUTH_KEY_ID" env-default:""`
+	RedirectURL string `env:"APPLE_REDIRECT_URL" env-default:"http://localhost:8090/auth/apple/callback"`
+	SecretKey   string `env:"OAUTH_SECRET_KEY" env-default:"http://localhost:8090/auth/google/callback"`
 }
 
 type FacebookAuthConfig struct {
@@ -69,10 +89,11 @@ type FacebookAuthConfig struct {
 	RevokeURL   string `env:"OAUTH_REVOKE_URL" env-default:"https://www.googleapis.com/oauth2/v3/userinfo"`
 }
 type Authorization struct {
-	JWTSecret string             `env:"JWT_SECRET" env-default:"86194778010"`
-	Google    GoogleAuthConfig   `envPrefix:"GOOGLE_"`
-	Apple     AppleAuthConfig    `envPrefix:"APPLE_"`
-	Facebook  FacebookAuthConfig `envPrefix:"FACEBOOK_"`
+	JWTSecret string              `env:"JWT_SECRET" env-default:"86194778010"`
+	Google    GoogleAuthConfig    `envPrefix:"GOOGLE_"`
+	WebGoogle WebGoogleAuthConfig `envPrefix:"WEB_GOOGLE_"`
+	Apple     AppleAuthConfig     `envPrefix:"APPLE_"`
+	Facebook  FacebookAuthConfig  `envPrefix:"FACEBOOK_"`
 }
 
 type Config struct {

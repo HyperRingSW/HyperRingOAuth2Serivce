@@ -57,6 +57,31 @@ paths:
           description: Not found
         '500':
           description: Internal server error
+  /auth/web/google:
+    post:
+      summary: Initiate Google web authentication
+      description: Initiates the OAuth2 authentication process with Google for web clients.
+      operationId: initiateGoogleOAuth2
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GoogleWebAuthRequest'
+      responses:
+        '200':
+          description: Successful authentication
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          description: Bad request
+        '404':
+          description: Not found
+        '500':
+          description: Internal server error
+
 
   /auth/token/refresh:
     post:
@@ -201,6 +226,13 @@ paths:
 
 components:
   schemas:
+    GoogleWebAuthRequest:
+      type: object
+      properties:
+        idToken:
+          type: string
+          description: ID token
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
     GoogleAuthRequest:
       type: object
       properties:
