@@ -622,12 +622,6 @@ func (h *Handler) WebGoogleHandler(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
 	}()
 
-	/*if err := r.ParseForm(); err != nil {
-		logs["error"]["parseForm"] = err.Error()
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}*/
-
 	body := models.AuthWebGoogleBodyRequest
 
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
@@ -636,6 +630,13 @@ func (h *Handler) WebGoogleHandler(w http.ResponseWriter, r *http.Request) {
 		//w.WriteHeader(http.StatusBadRequest)
 		return
 	}
+
+	deviceUUID := body.DeviceUUID
+	if deviceUUID == "" {
+		logs["error"]["deviceUUID"] = "invalid device UUID in request"
+		return
+	}
+	logs["info"]["deviceUUID"] = deviceUUID
 
 	logs["info"]["idToken"] = body.IdToken
 	provider := models.WEB_PROVIDER_GOOGLE
@@ -747,13 +748,13 @@ func (h *Handler) WebGoogleHandler(w http.ResponseWriter, r *http.Request) {
 		expiresAt = time.Now().Add(time.Second * time.Duration(h.cfg.App.ExpiresTime))
 	}
 
-	DeviceUUID := uuid.New().String()
+	//DeviceUUID := uuid.New().String()
 
 	// Create token
 	newToken := models.Token{
 		UserID:       user.ID,
 		Provider:     provider,
-		DeviceUUID:   DeviceUUID,
+		DeviceUUID:   deviceUUID,
 		AccessToken:  body.IdToken, //TODO
 		RefreshToken: body.IdToken, //TODO
 		IDToken:      body.IdToken,
@@ -774,9 +775,9 @@ func (h *Handler) WebGoogleHandler(w http.ResponseWriter, r *http.Request) {
 	logs["info"]["savedToken"] = savedToken
 
 	// Generate JWT token
-	jwtToken, _, err := util.GenerateJWT(user.ID, provider, expiresAt.Unix(), DeviceUUID)
+	jwtToken, _, err := util.GenerateJWT(user.ID, provider, expiresAt.Unix(), deviceUUID)
 	if err != nil {
-		logs["error"]["GenerateJWTParams"] = fmt.Sprintf("user.ID, provider, expiresAt.Unix(), body.DeviceUUID: %s, %s, %w, %s", user.ID, provider, expiresAt.Unix(), DeviceUUID)
+		logs["error"]["GenerateJWTParams"] = fmt.Sprintf("user.ID, provider, expiresAt.Unix(), body.DeviceUUID: %s, %s, %w, %s", user.ID, provider, expiresAt.Unix(), deviceUUID)
 		logs["error"]["GenerateJWT"] = err.Error()
 		//w.WriteHeader(http.StatusInternalServerError)
 		return

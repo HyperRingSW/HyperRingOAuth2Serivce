@@ -229,6 +229,10 @@ components:
     GoogleWebAuthRequest:
       type: object
       properties:
+        uuid:
+          type: string
+          description: device uuid
+          example: "3edc01a7-f6b7-4552-9fad-105d51cacb92"
         idToken:
           type: string
           description: ID token

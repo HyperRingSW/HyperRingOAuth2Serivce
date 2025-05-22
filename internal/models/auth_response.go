@@ -13,5 +13,6 @@ type AuthResponse struct {
 }
 
 var AuthWebGoogleBodyRequest struct {
-	IdToken string `json:"idToken"`
+	IdToken    string `json:"idToken"`
+	DeviceUUID string `json:"uuid,omitempty"`
 }
