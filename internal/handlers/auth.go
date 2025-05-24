@@ -321,6 +321,32 @@ func (h *Handler) RefreshTokenHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		return
+	case models.WEB_PROVIDER_GOOGLE:
+		_, err := providers.VerifyGoogleIDToken(token.IDToken, providerConfig)
+		if err != nil {
+			logs["error"]["idToken"] = fmt.Sprintf("error verifying web google: %s", token.IDToken)
+			logs["error"]["msg"] = err.Error()
+			return
+		}
+
+		expiresAt := time.Now().Add(180 * 24 * time.Hour)
+		if h.cfg.App.CustomExpiresTime {
+			expiresAt = time.Now().Add(time.Second * time.Duration(h.cfg.App.ExpiresTime))
+		}
+
+		jwtToken, _, err := util.GenerateJWT(userID, provider, expiresAt.Unix(), deviceUUID)
+		if err != nil {
+			logs["error"]["jwtTokenErrorMessage"] = fmt.Sprintf("error generating jwt: %s", token.IDToken)
+			logs["error"]["jwtTokenError"] = err.Error()
+			return
+		}
+
+		response = models.AuthResponse{
+			JWTToken:  jwtToken,
+			ExpiresAt: expiresAt.Unix(),
+		}
+
+		return
 	case models.PROVIDER_GOOGLE:
 		data.Set("client_id", providerConfig.ClientID)
 		data.Set("client_secret", "")
@@ -483,6 +509,7 @@ func (h *Handler) LogoutHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	case models.PROVIDER_GOOGLE:
+	case models.WEB_PROVIDER_GOOGLE:
 		//data.Set("token", decryptAccess)
 	default:
 		logs["error"]["provider"] = fmt.Sprintf("Unsupported provider: %s", provider)

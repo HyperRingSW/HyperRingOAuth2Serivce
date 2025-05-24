@@ -69,6 +69,22 @@ func (h *Middleware) AuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
 			return
 		}
 		userID := uint(idFloat)
+		logs["info"]["user_id"] = userID
+
+		us := h.repo.UserRepository().GetUserByID(userID)
+		if us == nil {
+			util.LogInfo("AuthMiddleware user not found")
+			util.LogError(err)
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+
+		if !util.IsValidEmail(us.Email) {
+			util.LogInfo("AuthMiddleware invalid email")
+			util.LogError(err)
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 
 		tokenDB := h.repo.TokenRepository().UserToken(userID, claims["provider"].(string))
 		if tokenDB == nil {

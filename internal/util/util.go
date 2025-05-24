@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"regexp"
 	"time"
 )
 
@@ -47,4 +48,10 @@ func GetHash(phrase, input string) string {
 	data := fmt.Sprintf("%s_%d", input, time.Now().UnixNano())
 	sum := sha256.Sum256([]byte(data))
 	return fmt.Sprintf("%x_%x", phrase, sum)
+}
+
+func IsValidEmail(email string) bool {
+	const emailRegexPattern = `^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`
+	re := regexp.MustCompile(emailRegexPattern)
+	return re.MatchString(email)
 }
