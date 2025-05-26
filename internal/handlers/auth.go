@@ -660,8 +660,7 @@ func (h *Handler) WebGoogleHandler(w http.ResponseWriter, r *http.Request) {
 
 	deviceUUID := body.DeviceUUID
 	if deviceUUID == "" {
-		logs["error"]["deviceUUID"] = "invalid device UUID in request"
-		return
+		deviceUUID = uuid.New().String()
 	}
 	logs["info"]["deviceUUID"] = deviceUUID
 
