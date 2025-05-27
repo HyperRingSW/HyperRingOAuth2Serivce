@@ -249,7 +249,7 @@ func (h *Handler) RefreshTokenHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	logs["info"]["deviceUUID"] = deviceUUID
 
-	token := h.repo.TokenRepository().UserToken(userID, provider)
+	token := h.repo.TokenRepository().UserToken(userID, provider, deviceUUID)
 	if token == nil {
 		logs["error"]["token"] = "not found"
 		return
@@ -492,7 +492,7 @@ func (h *Handler) LogoutHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	logs["info"]["deviceUUID"] = deviceUUID
 
-	token := h.repo.TokenRepository().UserToken(userID, provider)
+	token := h.repo.TokenRepository().UserToken(userID, provider, deviceUUID)
 	if token == nil {
 		logs["error"]["tokenError"] = "Token not found"
 		return

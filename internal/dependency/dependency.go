@@ -19,7 +19,7 @@ type TokenRepository interface {
 	UpdateToken(token models.Token, provider string, deviceUUID string) (*models.Token, error)
 	InvalidateAccessToken(accessToken string, deviceUUID string) error
 	InvalidateIdToken(idToken string, deviceUUID string) error
-	UserToken(userId uint, provider string) *models.Token
+	UserToken(userId uint, provider string, deviceUUID string) *models.Token
 	UserTokens(userId uint) ([]models.Token, error)
 }
 

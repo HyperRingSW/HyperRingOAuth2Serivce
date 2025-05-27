@@ -154,10 +154,10 @@ func (repo *PostgresDB) InvalidateIdToken(idToken string, deviceUUID string) err
 	return repo.db.Where("id_token = ? and device_uuid = ?", idToken, deviceUUID).Delete(&models.Token{}).Error
 }
 
-func (repo *PostgresDB) UserToken(userId uint, provider string) *models.Token {
+func (repo *PostgresDB) UserToken(userId uint, provider string, deviceUUID string) *models.Token {
 	token := &models.Token{}
 
-	result := repo.db.Where("user_id = ? and provider = ?", userId, provider).First(&token)
+	result := repo.db.Where("user_id = ? and provider = ? and device_uuid = ?", userId, provider, deviceUUID).First(&token)
 	if result.RowsAffected != 0 {
 		return token
 	}
