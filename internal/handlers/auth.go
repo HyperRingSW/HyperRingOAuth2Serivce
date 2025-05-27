@@ -264,6 +264,12 @@ func (h *Handler) RefreshTokenHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	logs["info"]["deviceUUID"] = deviceUUID
 
+	/*	jwtT, err := util.GetJWT(r)
+		if err != nil {
+			logs["error"]["GetJWT"] = err.Error()
+			return
+		}*/
+
 	token := h.repo.TokenRepository().UserToken(userID, provider, deviceUUID)
 	if token == nil {
 		logs["error"]["token"] = "not found"
@@ -572,6 +578,19 @@ func (h *Handler) LogoutHandler(w http.ResponseWriter, r *http.Request) {
 			logs["error"]["InvalidateIdToken"] = err.Error()
 			return
 		}
+
+		jwtToken, err := util.GetJWT(r)
+		if err != nil {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+
+		err = h.repo.JwtDeviceRepository().DeleteJwtDevice(jwtToken)
+		if err != nil {
+			logs["error"]["tokenError"] = fmt.Sprintf("error deleting jwt: %s", token.ID)
+			logs["error"]["tokenError"] = err.Error()
+			return
+		}
 		return
 	case models.PROVIDER_GOOGLE:
 	case models.WEB_PROVIDER_GOOGLE:
@@ -581,8 +600,25 @@ func (h *Handler) LogoutHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.repo.TokenRepository().InvalidateAccessToken(token.AccessToken); err != nil {
+	/*if err := h.repo.TokenRepository().InvalidateAccessToken(token.AccessToken); err != nil {
 		logs["error"]["tokenError"] = "invalid access token"
+		return
+	}*/
+	jwtToken, err := util.GetJWT(r)
+	if err != nil {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	err = h.repo.JwtDeviceRepository().DeleteJwtDevice(jwtToken)
+	if err != nil {
+		logs["error"]["tokenError"] = fmt.Sprintf("error deleting jwt: %s", token.ID)
+		logs["error"]["tokenError"] = err.Error()
+		return
+	}
+
+	if err := h.repo.TokenRepository().InvalidateIdToken(token.IDToken); err != nil {
+		logs["error"]["tokenError"] = "invalid google id token"
 		return
 	}
 
