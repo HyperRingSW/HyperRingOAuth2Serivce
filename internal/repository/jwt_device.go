@@ -34,7 +34,7 @@ func (repo *PostgresDB) SaveJwtDevice(jwtDevice *models.JwtDevice) (*models.JwtD
 }
 
 func (repo *PostgresDB) DeleteJwtDevice(jwt string) error {
-	if err := repo.db.Delete(&models.JwtDevice{}).Where("jwt = ?", jwt).Error; err != nil {
+	if err := repo.db.Where("jwt = ?", jwt).Delete(&models.JwtDevice{}).Error; err != nil {
 		return errors.New("delete user auth failed: " + err.Error())
 	}
 	return nil

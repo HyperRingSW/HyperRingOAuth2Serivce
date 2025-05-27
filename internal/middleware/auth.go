@@ -97,7 +97,7 @@ func (h *Middleware) AuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
 			return
 		}
 
-		tokenDB := h.repo.TokenRepository().UserToken(userID, claims["provider"].(string))
+		tokenDB := h.repo.TokenRepository().UserToken(userID, claims["provider"].(string), claims["device_uuid"].(string))
 		if tokenDB == nil {
 			util.LogError(errors.New("token is not found"))
 			w.WriteHeader(http.StatusUnauthorized)

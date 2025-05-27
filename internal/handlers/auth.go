@@ -264,7 +264,7 @@ func (h *Handler) RefreshTokenHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	logs["info"]["deviceUUID"] = deviceUUID
 
-	token := h.repo.TokenRepository().UserToken(userID, provider)
+	token := h.repo.TokenRepository().UserToken(userID, provider, deviceUUID)
 	if token == nil {
 		logs["error"]["token"] = "not found"
 		return
@@ -330,16 +330,25 @@ func (h *Handler) RefreshTokenHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		response = models.AuthResponse{
-			JWTToken:  jwtToken,
-			ExpiresAt: expiresAt.Unix(),
-		}
-
 		err = h.repo.JwtDeviceRepository().DeleteJwtDevice(jwtOld)
 		if err != nil {
 			logs["error"]["jwtTokenErrorMessage"] = fmt.Sprintf("error deleting jwt: %s", jwtOld)
 			logs["error"]["jwtTokenError"] = err.Error()
 			return
+		}
+		_, err = h.repo.JwtDeviceRepository().SaveJwtDevice(&models.JwtDevice{
+			JWT:        jwtToken,
+			DeviceUUID: deviceUUID,
+		})
+		if err != nil {
+			logs["error"]["jwtTokenErrorMessage"] = fmt.Sprintf("error save jwt: %s", jwtOld)
+			logs["error"]["jwtTokenError"] = err.Error()
+			return
+		}
+
+		response = models.AuthResponse{
+			JWTToken:  jwtToken,
+			ExpiresAt: expiresAt.Unix(),
 		}
 
 		return
@@ -363,16 +372,26 @@ func (h *Handler) RefreshTokenHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		response = models.AuthResponse{
-			JWTToken:  jwtToken,
-			ExpiresAt: expiresAt.Unix(),
-		}
-
 		err = h.repo.JwtDeviceRepository().DeleteJwtDevice(jwtOld)
 		if err != nil {
 			logs["error"]["jwtTokenErrorMessage"] = fmt.Sprintf("error deleting jwt: %s", jwtOld)
 			logs["error"]["jwtTokenError"] = err.Error()
 			return
+		}
+
+		_, err = h.repo.JwtDeviceRepository().SaveJwtDevice(&models.JwtDevice{
+			JWT:        jwtToken,
+			DeviceUUID: deviceUUID,
+		})
+		if err != nil {
+			logs["error"]["jwtTokenErrorMessage"] = fmt.Sprintf("error save jwt: %s", jwtOld)
+			logs["error"]["jwtTokenError"] = err.Error()
+			return
+		}
+
+		response = models.AuthResponse{
+			JWTToken:  jwtToken,
+			ExpiresAt: expiresAt.Unix(),
 		}
 
 		return
@@ -483,6 +502,16 @@ func (h *Handler) RefreshTokenHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	_, err = h.repo.JwtDeviceRepository().SaveJwtDevice(&models.JwtDevice{
+		JWT:        newJWT,
+		DeviceUUID: deviceUUID,
+	})
+	if err != nil {
+		logs["error"]["jwtTokenErrorMessage"] = fmt.Sprintf("error save jwt: %s", jwtOld)
+		logs["error"]["jwtTokenError"] = err.Error()
+		return
+	}
+
 	response = models.AuthResponse{
 		JWTToken:  newJWT,
 		ExpiresAt: expiresAt.Unix(),
@@ -528,7 +557,7 @@ func (h *Handler) LogoutHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	logs["info"]["deviceUUID"] = deviceUUID
 
-	token := h.repo.TokenRepository().UserToken(userID, provider)
+	token := h.repo.TokenRepository().UserToken(userID, provider, deviceUUID)
 	if token == nil {
 		logs["error"]["tokenError"] = "Token not found"
 		return
