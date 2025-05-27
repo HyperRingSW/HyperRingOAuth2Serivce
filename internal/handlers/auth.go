@@ -679,7 +679,19 @@ func (h *Handler) RemoveHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	//w.WriteHeader(http.StatusOK)
+	jwtToken, err := util.GetJWT(r)
+	if err != nil {
+		w.WriteHeader(http.StatusUnauthorized)
+		return
+	}
+
+	err = h.repo.JwtDeviceRepository().DeleteJwtDevice(jwtToken)
+	if err != nil {
+		logs["error"]["tokenError"] = fmt.Sprintf("error deleting jwt: %s", jwtToken)
+		logs["error"]["tokenError"] = err.Error()
+		return
+	}
+
 	return
 }
 
