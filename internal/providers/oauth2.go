@@ -300,11 +300,11 @@ func VerifyAppleIdentityToken(idToken string, providerConfig ProviderConfig) (ma
 		if aud != providerConfig.ClientID {
 			logs["error"]["parsedTokenAUD"] = fmt.Sprintf("VerifyAppleIdentityToken audience mismatch. Getting aud: %s", aud)
 		}
-		return nil, errors.New("google invalid audience")
+		return nil, errors.New("apple invalid audience")
 	}
 	if exp, ok := claims["exp"].(float64); ok && int64(exp) < time.Now().Unix() {
 		logs["info"]["parsedTokenClaims"] = fmt.Sprintf("VerifyAppleIdentityToken expired")
-		return nil, errors.New("google token expired")
+		return nil, errors.New("apple token expired")
 	}
 
 	/*// Other checking: audience и issuer.

@@ -20,6 +20,7 @@ func RunMigrations(db *gorm.DB) error {
 		&models.RingBatch{},
 		&models.UserRing{},
 		&models.RingService{},
+		&models.JwtDevice{},
 	); err != nil {
 		return fmt.Errorf("ошибка миграции: %w", err)
 	}

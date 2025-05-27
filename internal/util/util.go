@@ -9,7 +9,9 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"net/http"
 	"regexp"
+	"strings"
 	"time"
 )
 
@@ -54,4 +56,17 @@ func IsValidEmail(email string) bool {
 	const emailRegexPattern = `^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`
 	re := regexp.MustCompile(emailRegexPattern)
 	return re.MatchString(email)
+}
+
+func GetJWT(r *http.Request) (string, error) {
+	authHeader := r.Header.Get("Authorization")
+	if !strings.HasPrefix(authHeader, "Bearer ") {
+		LogInfo(fmt.Sprintf("authorization header format is incorrect: %s", authHeader))
+		LogError(errors.New("authorization header format is incorrect"))
+
+		return "", errors.New("authorization header format is incorrect")
+	}
+
+	token := strings.TrimPrefix(authHeader, "Bearer ")
+	return token, nil
 }

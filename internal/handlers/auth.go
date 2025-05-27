@@ -201,9 +201,18 @@ func (h *Handler) AuthUserHandler(w http.ResponseWriter, r *http.Request, provid
 	}
 	logs["info"]["jwtToken"] = jwtToken
 
+	_, err = h.repo.JwtDeviceRepository().SaveJwtDevice(&models.JwtDevice{
+		JWT:        jwtToken,
+		DeviceUUID: body.DeviceUUID,
+	})
+
 	response = models.AuthResponse{
 		JWTToken:  jwtToken,
 		ExpiresAt: expiresAt.Unix(),
+	}
+	if err != nil {
+		logs["error"]["SaveJwtDevice"] = err.Error()
+		return
 	}
 
 	return
@@ -227,6 +236,12 @@ func (h *Handler) RefreshTokenHandler(w http.ResponseWriter, r *http.Request) {
 
 		w.WriteHeader(http.StatusBadRequest)
 	}()
+
+	jwtOld, err := util.GetJWT(r)
+	if err != nil {
+		logs["error"]["GetJWT"] = err.Error()
+		return
+	}
 
 	userID, ok := r.Context().Value("userID").(uint)
 	if !ok {
@@ -320,6 +335,13 @@ func (h *Handler) RefreshTokenHandler(w http.ResponseWriter, r *http.Request) {
 			ExpiresAt: expiresAt.Unix(),
 		}
 
+		err = h.repo.JwtDeviceRepository().DeleteJwtDevice(jwtOld)
+		if err != nil {
+			logs["error"]["jwtTokenErrorMessage"] = fmt.Sprintf("error deleting jwt: %s", jwtOld)
+			logs["error"]["jwtTokenError"] = err.Error()
+			return
+		}
+
 		return
 	case models.WEB_PROVIDER_GOOGLE:
 		_, err := providers.VerifyGoogleIDToken(token.IDToken, providerConfig)
@@ -344,6 +366,13 @@ func (h *Handler) RefreshTokenHandler(w http.ResponseWriter, r *http.Request) {
 		response = models.AuthResponse{
 			JWTToken:  jwtToken,
 			ExpiresAt: expiresAt.Unix(),
+		}
+
+		err = h.repo.JwtDeviceRepository().DeleteJwtDevice(jwtOld)
+		if err != nil {
+			logs["error"]["jwtTokenErrorMessage"] = fmt.Sprintf("error deleting jwt: %s", jwtOld)
+			logs["error"]["jwtTokenError"] = err.Error()
+			return
 		}
 
 		return
@@ -447,6 +476,13 @@ func (h *Handler) RefreshTokenHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	logs["info"]["newJWT"] = newJWT
 
+	err = h.repo.JwtDeviceRepository().DeleteJwtDevice(jwtOld)
+	if err != nil {
+		logs["error"]["tokenError"] = fmt.Sprintf("error deleting jwt: %s", token.ID)
+		logs["error"]["tokenError"] = err.Error()
+		return
+	}
+
 	response = models.AuthResponse{
 		JWTToken:  newJWT,
 		ExpiresAt: expiresAt.Unix(),
@@ -501,9 +537,9 @@ func (h *Handler) LogoutHandler(w http.ResponseWriter, r *http.Request) {
 
 	switch provider {
 	case models.PROVIDER_APPLE:
-		err := h.repo.TokenRepository().InvalidateIdToken(token.IDToken, deviceUUID)
+		err := h.repo.TokenRepository().InvalidateIdToken(token.IDToken)
 		if err != nil {
-			logs["error"]["InvalidateIdTokenParams"] = fmt.Sprintf("token.IDToken, deviceUUID: %s, %s", token.IDToken, deviceUUID)
+			logs["error"]["InvalidateIdTokenParams"] = fmt.Sprintf("token.IDToken: %s, %s", token.IDToken)
 			logs["error"]["InvalidateIdToken"] = err.Error()
 			return
 		}
@@ -516,7 +552,7 @@ func (h *Handler) LogoutHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.repo.TokenRepository().InvalidateAccessToken(token.AccessToken, deviceUUID); err != nil {
+	if err := h.repo.TokenRepository().InvalidateAccessToken(token.AccessToken); err != nil {
 		logs["error"]["tokenError"] = "invalid access token"
 		return
 	}
