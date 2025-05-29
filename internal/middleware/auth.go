@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"oauth2-server/internal/dependency"
 	"oauth2-server/internal/util"
-	"strings"
 )
 
 type Middleware struct {
@@ -42,7 +41,7 @@ func (h *Middleware) AuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
 			util.LogInfoMap(logs)
 		}()
 
-		authHeader := r.Header.Get("Authorization")
+		/*authHeader := r.Header.Get("Authorization")
 		if !strings.HasPrefix(authHeader, "Bearer ") {
 			util.LogInfo(fmt.Sprintf("authorization header format is incorrect: %s", authHeader))
 			util.LogError(errors.New("authorization header format is incorrect"))
@@ -51,7 +50,19 @@ func (h *Middleware) AuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
 			return
 		}
 
-		token := strings.TrimPrefix(authHeader, "Bearer ")
+		token := strings.TrimPrefix(authHeader, "Bearer ")*/
+		token, err := util.GetJWT(r)
+		if err != nil {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+
+		_, err = h.repo.JwtDeviceRepository().GetJwtDevice(token)
+		if err != nil {
+			util.LogError(fmt.Errorf("get jwt device error: %v", err))
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 
 		claims, err := util.ParseJWT(token, requestPath)
 		if err != nil {
@@ -69,8 +80,24 @@ func (h *Middleware) AuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
 			return
 		}
 		userID := uint(idFloat)
+		logs["info"]["user_id"] = userID
 
-		tokenDB := h.repo.TokenRepository().UserToken(userID, claims["provider"].(string))
+		us := h.repo.UserRepository().GetUserByID(userID)
+		if us == nil {
+			util.LogInfo("AuthMiddleware user not found")
+			util.LogError(err)
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+
+		if !util.IsValidEmail(us.Email) {
+			util.LogInfo("AuthMiddleware invalid email")
+			util.LogError(err)
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+
+		tokenDB := h.repo.TokenRepository().UserToken(userID, claims["provider"].(string), claims["device_uuid"].(string))
 		if tokenDB == nil {
 			util.LogError(errors.New("token is not found"))
 			w.WriteHeader(http.StatusUnauthorized)

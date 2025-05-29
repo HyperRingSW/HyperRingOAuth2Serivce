@@ -17,9 +17,11 @@ type UserRepository interface {
 type TokenRepository interface {
 	CreateOrUpdateToken(newToken models.Token) (*models.Token, error)
 	UpdateToken(token models.Token, provider string, deviceUUID string) (*models.Token, error)
-	InvalidateAccessToken(accessToken string, deviceUUID string) error
-	InvalidateIdToken(idToken string, deviceUUID string) error
-	UserToken(userId uint, provider string) *models.Token
+	//InvalidateAccessToken(accessToken string, deviceUUID string) error
+	//InvalidateIdToken(idToken string, deviceUUID string) error
+	InvalidateAccessToken(accessToken string) error
+	InvalidateIdToken(idToken string) error
+	UserToken(userId uint, provider string, deviceUUID string) *models.Token
 	UserTokens(userId uint) ([]models.Token, error)
 }
 
@@ -28,6 +30,12 @@ type RingRepository interface {
 	UpdateRingName(ringId string, userNamed string) error
 	GetRing(id string) (*models.Ring, error)
 	DeleteRing(ringId string) error
+}
+type JwtDeviceRepository interface {
+	GetJwtDevice(deviceUUID string) (*models.JwtDevice, error)
+	SaveJwtDevice(jwtDevice *models.JwtDevice) (*models.JwtDevice, error)
+	DeleteJwtDevice(jwt string, mode bool) error
+	DisableJwtDevice(jwt string) error
 }
 
 type UserRingRepository interface {
@@ -42,6 +50,7 @@ type Repository interface {
 	TokenRepository() TokenRepository
 	RingRepository() RingRepository
 	UserRingRepository() UserRingRepository
+	JwtDeviceRepository() JwtDeviceRepository
 	//TxBegin(func()) (Repository, error)
 }
 
@@ -50,6 +59,7 @@ type AuthHandler interface {
 	RefreshTokenHandler(w http.ResponseWriter, r *http.Request)
 	LogoutHandler(w http.ResponseWriter, r *http.Request)
 	RemoveHandler(w http.ResponseWriter, r *http.Request)
+	WebGoogleHandler(w http.ResponseWriter, r *http.Request)
 }
 
 type UserHandler interface {

@@ -1,9 +1,10 @@
 package api
 
 import (
-	"github.com/gorilla/mux"
 	"net/http"
 	"oauth2-server/internal/dependency"
+
+	"github.com/gorilla/mux"
 )
 
 func RegisterRoutes(router *mux.Router, handler dependency.Handler, middlewares dependency.MiddleHandler) {
@@ -49,6 +50,11 @@ func RegisterRoutes(router *mux.Router, handler dependency.Handler, middlewares 
 	router.HandleFunc("/user/ring", middlewares.AuthMiddleware(func(w http.ResponseWriter, r *http.Request) {
 		handler.RingHandler().UnlinkRingHandler(w, r)
 	})).Methods("DELETE")
+
+	// Маршрут для обработки callback от Google
+	router.HandleFunc("/auth/web/google", func(w http.ResponseWriter, r *http.Request) {
+		handler.AuthHandler().WebGoogleHandler(w, r)
+	}).Methods("POST")
 
 	router.HandleFunc("/swagger", func(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, "internal/public/swagger.html")
