@@ -859,8 +859,6 @@ func (h *Handler) WebGoogleHandler(w http.ResponseWriter, r *http.Request) {
 		expiresAt = time.Now().Add(time.Second * time.Duration(h.cfg.App.ExpiresTime))
 	}
 
-	//DeviceUUID := uuid.New().String()
-
 	// Create token
 	provider = models.PROVIDER_GOOGLE
 	newToken := models.Token{
