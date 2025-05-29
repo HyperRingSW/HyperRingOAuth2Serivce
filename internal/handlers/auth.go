@@ -894,6 +894,16 @@ func (h *Handler) WebGoogleHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	logs["info"]["jwtToken"] = jwtToken
 
+	_, err = h.repo.JwtDeviceRepository().SaveJwtDevice(&models.JwtDevice{
+		JWT:        jwtToken,
+		DeviceUUID: body.DeviceUUID,
+		Status:     true,
+	})
+	if err != nil {
+		logs["error"]["SaveJwtDevice"] = err.Error()
+		return
+	}
+
 	response = models.AuthResponse{
 		JWTToken:  jwtToken,
 		ExpiresAt: expiresAt.Unix(),
