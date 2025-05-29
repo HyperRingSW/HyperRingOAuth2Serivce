@@ -18,7 +18,7 @@ func (repo *PostgresDB) JwtDeviceRepository() dependency.JwtDeviceRepository {
 
 func (repo *PostgresDB) GetJwtDevice(jwt string) (*models.JwtDevice, error) {
 	var jwtD models.JwtDevice
-	result := repo.db.Where("jwt = ?", jwt).First(&jwtD)
+	result := repo.db.Where("jwt = ? and (status IS NULL or status = true)", jwt).First(&jwtD)
 	if result.RowsAffected == 0 {
 		return nil, errors.New("jwt device not found")
 	}
