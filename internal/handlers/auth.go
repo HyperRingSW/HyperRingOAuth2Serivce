@@ -796,53 +796,21 @@ func (h *Handler) WebGoogleHandler(w http.ResponseWriter, r *http.Request) {
 	var claims map[string]interface{}
 
 	switch strings.ToLower(provider) {
-	case models.PROVIDER_GOOGLE:
-		if body.IdToken == "" {
-			logs["error"]["idTokenRequired"] = "idToken is required"
-			//w.WriteHeader(http.StatusBadRequest)
-			return
-		}
-		claims, err = providers.VerifyGoogleIDToken(body.IdToken, providerConfig)
-		if err != nil {
-			logs["error"]["providerConfigMessage"] = fmt.Sprintf("error getting provider config, provider and confing: %s, %+v", provider, providerConfig)
-			logs["error"]["VerifyGoogleIDToken"] = err.Error()
-			//w.WriteHeader(http.StatusBadRequest)
-			return
-		}
-		logs["info"]["claims"] = claims
 	case models.WEB_PROVIDER_GOOGLE:
 		if body.IdToken == "" {
 			logs["error"]["idTokenRequired"] = "idToken is required"
-			//w.WriteHeader(http.StatusBadRequest)
 			return
 		}
 		claims, err = providers.VerifyGoogleIDToken(body.IdToken, providerConfig)
 		if err != nil {
 			logs["error"]["providerConfigMessage"] = fmt.Sprintf("error getting provider config, provider and confing: %s, %+v", provider, providerConfig)
 			logs["error"]["VerifyGoogleIDToken"] = err.Error()
-			//w.WriteHeader(http.StatusBadRequest)
-			return
-		}
-		logs["info"]["claims"] = claims
-
-	case models.PROVIDER_APPLE:
-		if body.IdToken == "" {
-			logs["error"]["idTokenRequired"] = "idToken is required"
-			//w.WriteHeader(http.StatusBadRequest)
-			return
-		}
-		claims, err = providers.VerifyAppleIdentityToken(body.IdToken, providerConfig)
-		if err != nil {
-			logs["error"]["VerifyAppleIdentityTokenParams"] = fmt.Sprintf("body.IdToken, providerConfig: %s, %w,", body.IdToken, providerConfig)
-			logs["error"]["VerifyAppleIdentityToken"] = err.Error()
-			//w.WriteHeader(http.StatusBadRequest)
 			return
 		}
 		logs["info"]["claims"] = claims
 
 	default:
 		logs["error"]["providerConfigMessage"] = "provider not supported"
-		//w.WriteHeader(http.StatusNotFound)
 		return
 	}
 
@@ -894,6 +862,7 @@ func (h *Handler) WebGoogleHandler(w http.ResponseWriter, r *http.Request) {
 	//DeviceUUID := uuid.New().String()
 
 	// Create token
+	provider = models.PROVIDER_GOOGLE
 	newToken := models.Token{
 		UserID:       user.ID,
 		Provider:     provider,
