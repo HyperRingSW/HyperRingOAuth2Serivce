@@ -22,6 +22,7 @@ type AppConfig struct {
 	DemoMode          bool   `env:"DEMO_MODE" env-default:"false"`
 	AnonymizePhrase   string `env:"ANONYMIZE_PHRASE" env-default:"delete"`
 	DeleteMode        string `env:"DELETE_MODE" env-default:"soft"`
+	DisableJWTMode    bool   `env:"DISABLE_JWT_MODE" env-default:"true"`
 	RedirectURL       string `env:"REDIRECT_URL" env-default:"http://localhost:8090/auth/callback"`
 }
 

@@ -204,15 +204,16 @@ func (h *Handler) AuthUserHandler(w http.ResponseWriter, r *http.Request, provid
 	_, err = h.repo.JwtDeviceRepository().SaveJwtDevice(&models.JwtDevice{
 		JWT:        jwtToken,
 		DeviceUUID: body.DeviceUUID,
+		Status:     true,
 	})
+	if err != nil {
+		logs["error"]["SaveJwtDevice"] = err.Error()
+		return
+	}
 
 	response = models.AuthResponse{
 		JWTToken:  jwtToken,
 		ExpiresAt: expiresAt.Unix(),
-	}
-	if err != nil {
-		logs["error"]["SaveJwtDevice"] = err.Error()
-		return
 	}
 
 	return
@@ -336,7 +337,7 @@ func (h *Handler) RefreshTokenHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		err = h.repo.JwtDeviceRepository().DeleteJwtDevice(jwtOld)
+		err = h.repo.JwtDeviceRepository().DeleteJwtDevice(jwtOld, h.cfg.App.DisableJWTMode)
 		if err != nil {
 			logs["error"]["jwtTokenErrorMessage"] = fmt.Sprintf("error deleting jwt: %s", jwtOld)
 			logs["error"]["jwtTokenError"] = err.Error()
@@ -345,6 +346,7 @@ func (h *Handler) RefreshTokenHandler(w http.ResponseWriter, r *http.Request) {
 		_, err = h.repo.JwtDeviceRepository().SaveJwtDevice(&models.JwtDevice{
 			JWT:        jwtToken,
 			DeviceUUID: deviceUUID,
+			Status:     true,
 		})
 		if err != nil {
 			logs["error"]["jwtTokenErrorMessage"] = fmt.Sprintf("error save jwt: %s", jwtOld)
@@ -378,7 +380,7 @@ func (h *Handler) RefreshTokenHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		err = h.repo.JwtDeviceRepository().DeleteJwtDevice(jwtOld)
+		err = h.repo.JwtDeviceRepository().DeleteJwtDevice(jwtOld, h.cfg.App.DisableJWTMode)
 		if err != nil {
 			logs["error"]["jwtTokenErrorMessage"] = fmt.Sprintf("error deleting jwt: %s", jwtOld)
 			logs["error"]["jwtTokenError"] = err.Error()
@@ -388,6 +390,7 @@ func (h *Handler) RefreshTokenHandler(w http.ResponseWriter, r *http.Request) {
 		_, err = h.repo.JwtDeviceRepository().SaveJwtDevice(&models.JwtDevice{
 			JWT:        jwtToken,
 			DeviceUUID: deviceUUID,
+			Status:     true,
 		})
 		if err != nil {
 			logs["error"]["jwtTokenErrorMessage"] = fmt.Sprintf("error save jwt: %s", jwtOld)
@@ -501,7 +504,7 @@ func (h *Handler) RefreshTokenHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	logs["info"]["newJWT"] = newJWT
 
-	err = h.repo.JwtDeviceRepository().DeleteJwtDevice(jwtOld)
+	err = h.repo.JwtDeviceRepository().DeleteJwtDevice(jwtOld, h.cfg.App.DisableJWTMode)
 	if err != nil {
 		logs["error"]["tokenError"] = fmt.Sprintf("error deleting jwt: %s", token.ID)
 		logs["error"]["tokenError"] = err.Error()
@@ -511,6 +514,7 @@ func (h *Handler) RefreshTokenHandler(w http.ResponseWriter, r *http.Request) {
 	_, err = h.repo.JwtDeviceRepository().SaveJwtDevice(&models.JwtDevice{
 		JWT:        newJWT,
 		DeviceUUID: deviceUUID,
+		Status:     true,
 	})
 	if err != nil {
 		logs["error"]["jwtTokenErrorMessage"] = fmt.Sprintf("error save jwt: %s", jwtOld)
@@ -585,7 +589,7 @@ func (h *Handler) LogoutHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		err = h.repo.JwtDeviceRepository().DeleteJwtDevice(jwtToken)
+		err = h.repo.JwtDeviceRepository().DeleteJwtDevice(jwtToken, h.cfg.App.DisableJWTMode)
 		if err != nil {
 			logs["error"]["tokenError"] = fmt.Sprintf("error deleting jwt: %s", token.ID)
 			logs["error"]["tokenError"] = err.Error()
@@ -610,7 +614,7 @@ func (h *Handler) LogoutHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = h.repo.JwtDeviceRepository().DeleteJwtDevice(jwtToken)
+	err = h.repo.JwtDeviceRepository().DeleteJwtDevice(jwtToken, h.cfg.App.DisableJWTMode)
 	if err != nil {
 		logs["error"]["tokenError"] = fmt.Sprintf("error deleting jwt: %s", token.ID)
 		logs["error"]["tokenError"] = err.Error()
@@ -685,7 +689,7 @@ func (h *Handler) RemoveHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = h.repo.JwtDeviceRepository().DeleteJwtDevice(jwtToken)
+	err = h.repo.JwtDeviceRepository().DeleteJwtDevice(jwtToken, h.cfg.App.DisableJWTMode)
 	if err != nil {
 		logs["error"]["tokenError"] = fmt.Sprintf("error deleting jwt: %s", jwtToken)
 		logs["error"]["tokenError"] = err.Error()

@@ -34,7 +34,8 @@ type RingRepository interface {
 type JwtDeviceRepository interface {
 	GetJwtDevice(deviceUUID string) (*models.JwtDevice, error)
 	SaveJwtDevice(jwtDevice *models.JwtDevice) (*models.JwtDevice, error)
-	DeleteJwtDevice(jwt string) error
+	DeleteJwtDevice(jwt string, mode bool) error
+	DisableJwtDevice(jwt string) error
 }
 
 type UserRingRepository interface {
