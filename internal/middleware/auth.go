@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"gorm.io/gorm"
 	"net/http"
 	"oauth2-server/internal/dependency"
 	"oauth2-server/internal/models"
@@ -59,48 +60,59 @@ func (h *Middleware) AuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
 			return
 		}
 
-		rClaims, err := util.ParseUnverifiedJWT(token)
-		if err != nil {
-			util.LogInfo("AuthMiddleware invalid token")
+		dbToken, err := h.repo.JwtDeviceRepository().FindJwt(token)
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			util.LogInfo("AuthMiddleware failed find token")
 			util.LogError(err)
 			w.WriteHeader(http.StatusUnauthorized)
 			return
+
 		}
 
-		var exp int64
-		if expValue, ok := rClaims["exp"].(float64); ok {
-			exp = int64(expValue)
-		} else {
-			util.LogError(fmt.Errorf("AuthMiddleware exp not found or invalid type"))
-			w.WriteHeader(http.StatusUnauthorized)
-			return
-		}
+		if dbToken == nil {
+			rClaims, err := util.ParseUnverifiedJWT(token)
+			if err != nil {
+				util.LogInfo("AuthMiddleware invalid token")
+				util.LogError(err)
+				w.WriteHeader(http.StatusUnauthorized)
+				return
+			}
 
-		var rDevice string
-		if deviceValue, ok := rClaims["device_uuid"].(string); ok {
-			rDevice = deviceValue
-		} else {
-			util.LogError(fmt.Errorf("AuthMiddleware device_uuid not found or invalid type"))
-			w.WriteHeader(http.StatusUnauthorized)
-			return
-		}
+			var exp int64
+			if expValue, ok := rClaims["exp"].(float64); ok {
+				exp = int64(expValue)
+			} else {
+				util.LogError(fmt.Errorf("AuthMiddleware exp not found or invalid type"))
+				w.WriteHeader(http.StatusUnauthorized)
+				return
+			}
 
-		status := true
-		if time.Now().Unix() > exp {
-			status = false
-		}
+			var rDevice string
+			if deviceValue, ok := rClaims["device_uuid"].(string); ok {
+				rDevice = deviceValue
+			} else {
+				util.LogError(fmt.Errorf("AuthMiddleware device_uuid not found or invalid type"))
+				w.WriteHeader(http.StatusUnauthorized)
+				return
+			}
 
-		newJWTDevice := &models.JwtDevice{
-			JWT:        token,
-			DeviceUUID: rDevice,
-			Status:     status,
-		}
+			status := true
+			if time.Now().Unix() > exp {
+				status = false
+			}
 
-		_, err = h.repo.JwtDeviceRepository().SaveJwtDevice(newJWTDevice)
-		if err != nil {
-			util.LogError(fmt.Errorf("AuthMiddleware failed to save jwt device: %v", err))
-			w.WriteHeader(http.StatusUnauthorized)
-			return
+			newJWTDevice := &models.JwtDevice{
+				JWT:        token,
+				DeviceUUID: rDevice,
+				Status:     status,
+			}
+
+			_, err = h.repo.JwtDeviceRepository().SaveJwtDevice(newJWTDevice)
+			if err != nil {
+				util.LogError(fmt.Errorf("AuthMiddleware failed to save jwt device: %v", err))
+				w.WriteHeader(http.StatusUnauthorized)
+				return
+			}
 		}
 
 		_, err = h.repo.JwtDeviceRepository().GetJwtDevice(token)

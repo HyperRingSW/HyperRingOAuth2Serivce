@@ -33,6 +33,7 @@ type RingRepository interface {
 }
 type JwtDeviceRepository interface {
 	GetJwtDevice(deviceUUID string) (*models.JwtDevice, error)
+	FindJwt(deviceUUID string) (*models.JwtDevice, error)
 	SaveJwtDevice(jwtDevice *models.JwtDevice) (*models.JwtDevice, error)
 	DeleteJwtDevice(jwt string, mode bool) error
 	DisableJwtDevice(jwt string) error

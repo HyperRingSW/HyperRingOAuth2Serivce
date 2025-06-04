@@ -860,7 +860,7 @@ func (h *Handler) WebGoogleHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Create token
-	provider = models.PROVIDER_GOOGLE
+	//provider = models.PROVIDER_GOOGLE
 	newToken := models.Token{
 		UserID:       user.ID,
 		Provider:     provider,
