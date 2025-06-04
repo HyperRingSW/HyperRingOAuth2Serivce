@@ -2,6 +2,7 @@ package repository
 
 import (
 	"errors"
+	"fmt"
 	"oauth2-server/internal/dependency"
 	"oauth2-server/internal/models"
 )
@@ -25,12 +26,15 @@ func (repo *PostgresDB) GetJwtDevice(jwt string) (*models.JwtDevice, error) {
 	return &jwtD, nil
 }
 func (repo *PostgresDB) SaveJwtDevice(jwtDevice *models.JwtDevice) (*models.JwtDevice, error) {
-	if err := repo.db.Create(&jwtDevice).Error; err != nil {
-		err = errors.New("create user auth failed: " + err.Error())
+	var existingJwtDevice models.JwtDevice
+	result := repo.db.Where("jwt = ?", jwtDevice.JWT).FirstOrCreate(&existingJwtDevice, jwtDevice)
+
+	if result.Error != nil {
+		err := fmt.Errorf("create user auth failed: %w", result.Error)
 		return nil, err
 	}
 
-	return jwtDevice, nil
+	return &existingJwtDevice, nil
 }
 
 func (repo *PostgresDB) DeleteJwtDevice(jwt string, mode bool) error {

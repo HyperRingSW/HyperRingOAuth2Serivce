@@ -3,6 +3,7 @@ package util
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 
@@ -53,6 +54,21 @@ func ParseJWT(tokenString string, requestPath string) (jwt.MapClaims, error) {
 	}
 
 	return nil, errors.New("invalid token")
+}
+
+func ParseUnverifiedJWT(tokenString string) (jwt.MapClaims, error) {
+	// Парсинг токена без проверки подписи
+	token, _, err := jwt.NewParser().ParseUnverified(tokenString, jwt.MapClaims{})
+	if err != nil {
+		return nil, err
+	}
+
+	// Извлечение claims
+	if claims, ok := token.Claims.(jwt.MapClaims); ok {
+		return claims, nil
+	}
+
+	return nil, fmt.Errorf("invalid token claims")
 }
 
 // DecodeJWT
