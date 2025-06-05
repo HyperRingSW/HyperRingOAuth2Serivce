@@ -47,7 +47,7 @@ func (repo *PostgresDB) SaveJwtDevice(jwtDevice *models.JwtDevice) (*models.JwtD
 	return &existingJwtDevice, nil
 }
 
-func (repo *PostgresDB) DeleteJwtDevice(jwt string, mode bool) error {
+func (repo *PostgresDB) DeleteJwtDevice(jwt string) error {
 	/*if mode {
 		updates := map[string]interface{}{
 			"status": false,

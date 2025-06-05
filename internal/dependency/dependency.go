@@ -35,7 +35,7 @@ type JwtDeviceRepository interface {
 	GetJwtDevice(deviceUUID string) (*models.JwtDevice, error)
 	FindJwt(deviceUUID string) (*models.JwtDevice, error)
 	SaveJwtDevice(jwtDevice *models.JwtDevice) (*models.JwtDevice, error)
-	DeleteJwtDevice(jwt string, mode bool) error
+	DeleteJwtDevice(jwt string) error
 	DisableJwtDevice(jwt string) error
 }
 

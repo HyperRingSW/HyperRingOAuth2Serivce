@@ -66,7 +66,6 @@ func (h *Middleware) AuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
 			util.LogError(err)
 			w.WriteHeader(http.StatusUnauthorized)
 			return
-
 		}
 
 		if dbToken == nil {
@@ -125,6 +124,28 @@ func (h *Middleware) AuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
 		claims, err := util.ParseJWT(token, requestPath)
 		if err != nil {
 			util.LogInfo("AuthMiddleware invalid token")
+			util.LogError(err)
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+
+		var actualExp int64
+		if expValue, ok := claims["exp"].(float64); ok {
+			actualExp = int64(expValue)
+		} else {
+			util.LogError(fmt.Errorf("AuthMiddleware actualExp not found or invalid type"))
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+
+		if time.Now().Unix() > actualExp {
+			err = h.repo.JwtDeviceRepository().DeleteJwtDevice(token)
+			if err != nil {
+				util.LogError(fmt.Errorf("AuthMiddleware failed to delete jwt device: %v", err))
+				w.WriteHeader(http.StatusUnauthorized)
+				return
+			}
+			util.LogInfo("AuthMiddleware expired token")
 			util.LogError(err)
 			w.WriteHeader(http.StatusUnauthorized)
 			return

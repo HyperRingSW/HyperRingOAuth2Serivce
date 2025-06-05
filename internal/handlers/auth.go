@@ -337,7 +337,7 @@ func (h *Handler) RefreshTokenHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		err = h.repo.JwtDeviceRepository().DeleteJwtDevice(jwtOld, h.cfg.App.DisableJWTMode)
+		err = h.repo.JwtDeviceRepository().DeleteJwtDevice(jwtOld)
 		if err != nil {
 			logs["error"]["jwtTokenErrorMessage"] = fmt.Sprintf("error deleting jwt: %s", jwtOld)
 			logs["error"]["jwtTokenError"] = err.Error()
@@ -380,7 +380,7 @@ func (h *Handler) RefreshTokenHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		err = h.repo.JwtDeviceRepository().DeleteJwtDevice(jwtOld, h.cfg.App.DisableJWTMode)
+		err = h.repo.JwtDeviceRepository().DeleteJwtDevice(jwtOld)
 		if err != nil {
 			logs["error"]["jwtTokenErrorMessage"] = fmt.Sprintf("error deleting jwt: %s", jwtOld)
 			logs["error"]["jwtTokenError"] = err.Error()
@@ -504,7 +504,7 @@ func (h *Handler) RefreshTokenHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	logs["info"]["newJWT"] = newJWT
 
-	err = h.repo.JwtDeviceRepository().DeleteJwtDevice(jwtOld, h.cfg.App.DisableJWTMode)
+	err = h.repo.JwtDeviceRepository().DeleteJwtDevice(jwtOld)
 	if err != nil {
 		logs["error"]["tokenError"] = fmt.Sprintf("error deleting jwt: %s", token.ID)
 		logs["error"]["tokenError"] = err.Error()
@@ -589,7 +589,7 @@ func (h *Handler) LogoutHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		err = h.repo.JwtDeviceRepository().DeleteJwtDevice(jwtToken, h.cfg.App.DisableJWTMode)
+		err = h.repo.JwtDeviceRepository().DeleteJwtDevice(jwtToken)
 		if err != nil {
 			logs["error"]["tokenError"] = fmt.Sprintf("error deleting jwt: %s", token.ID)
 			logs["error"]["tokenError"] = err.Error()
@@ -614,7 +614,7 @@ func (h *Handler) LogoutHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = h.repo.JwtDeviceRepository().DeleteJwtDevice(jwtToken, h.cfg.App.DisableJWTMode)
+	err = h.repo.JwtDeviceRepository().DeleteJwtDevice(jwtToken)
 	if err != nil {
 		logs["error"]["tokenError"] = fmt.Sprintf("error deleting jwt: %s", token.ID)
 		logs["error"]["tokenError"] = err.Error()
@@ -689,7 +689,7 @@ func (h *Handler) RemoveHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = h.repo.JwtDeviceRepository().DeleteJwtDevice(jwtToken, h.cfg.App.DisableJWTMode)
+	err = h.repo.JwtDeviceRepository().DeleteJwtDevice(jwtToken)
 	if err != nil {
 		logs["error"]["tokenError"] = fmt.Sprintf("error deleting jwt: %s", jwtToken)
 		logs["error"]["tokenError"] = err.Error()
