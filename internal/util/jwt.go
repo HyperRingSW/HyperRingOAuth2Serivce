@@ -113,3 +113,83 @@ func DecodeJWT(tokenString string) (map[string]interface{}, error) {
 		"payload": payload,
 	}, nil
 }
+
+func GenerateTokens(userID uint, t int, rt int) (accessToken string, refreshToken string, err error) {
+	accessClaims := jwt.MapClaims{
+		"sub":  float64(userID),
+		"exp":  time.Now().Add(time.Second * time.Duration(int64(t))).Unix(),
+		"type": "access",
+	}
+	access := jwt.NewWithClaims(jwt.SigningMethodHS256, accessClaims)
+	accessToken, err = access.SignedString(jwtSecret)
+	if err != nil {
+		return
+	}
+
+	refreshClaims := jwt.MapClaims{
+		"sub":  float64(userID),
+		"exp":  time.Now().Add(time.Second * time.Duration(int64(rt))).Unix(),
+		"type": "refresh",
+	}
+	refresh := jwt.NewWithClaims(jwt.SigningMethodHS256, refreshClaims)
+	refreshToken, err = refresh.SignedString(jwtSecret)
+	return
+}
+
+func RefreshCustomTokens(refreshToken string, t int, rt int) (newAccessToken string, newRefreshToken string, err error) {
+	token, err := jwt.Parse(refreshToken, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
+		return jwtSecret, nil
+	})
+	if err != nil || !token.Valid {
+		err = errors.New("invalid refresh token")
+		return
+	}
+
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok || claims["type"] != "refresh" {
+		err = errors.New("not a valid refresh token")
+		return
+	}
+
+	if exp, ok := claims["exp"].(float64); ok {
+		if int64(exp) < time.Now().Unix() {
+			err = errors.New("refresh token expired")
+			return
+		}
+	}
+
+	userID, ok := claims["sub"].(float64)
+	if !ok {
+		return "", "", errors.New("invalid subject in token")
+	}
+	//userID := uint(sub)
+
+	// Генерируем новый access token (15 мин)
+	newAccessClaims := jwt.MapClaims{
+		"sub":  userID,
+		"type": "access",
+		"exp":  time.Now().Add(time.Second * time.Duration(int64(t))).Unix(),
+	}
+	newAccess := jwt.NewWithClaims(jwt.SigningMethodHS256, newAccessClaims)
+	newAccessToken, err = newAccess.SignedString(jwtSecret)
+	if err != nil {
+		return
+	}
+
+	// Генерируем новый refresh token (30 дней)
+	newRefreshClaims := jwt.MapClaims{
+		"sub":  userID,
+		"type": "refresh",
+		"exp":  time.Now().Add(time.Second * time.Duration(int64(rt))).Unix(),
+	}
+	newRefresh := jwt.NewWithClaims(jwt.SigningMethodHS256, newRefreshClaims)
+	newRefreshToken, err = newRefresh.SignedString(jwtSecret)
+	if err != nil {
+		return
+	}
+
+	return
+}

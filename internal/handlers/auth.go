@@ -167,6 +167,20 @@ func (h *Handler) AuthUserHandler(w http.ResponseWriter, r *http.Request, provid
 		body.DeviceUUID = uuid.New().String()
 	}
 
+	access, refresh, err := util.GenerateTokens(user.ID, h.cfg.App.ExpiresTime, h.cfg.App.ExpiresRefreshTime)
+	if err != nil {
+		logs["error"]["GenerateTokens"] = fmt.Sprintf("error generating tokens: %+d", err)
+		logs["error"]["GenerateTokens"] = err.Error()
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	if body.RefreshToken == "" {
+		body.RefreshToken = refresh
+	}
+	if body.AccessToken == "" {
+		body.AccessToken = access
+	}
 	// Create token
 	newToken := models.Token{
 		UserID:       user.ID,
@@ -368,7 +382,75 @@ func (h *Handler) RefreshTokenHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		access, refresh, err := util.RefreshCustomTokens(token.RefreshToken, h.cfg.App.ExpiresTime, h.cfg.App.ExpiresRefreshTime)
+		if err != nil {
+			logs["error"]["refreshTokenErrorMessage"] = fmt.Sprintf("error refreshing custom tokens: %s", token.RefreshToken)
+			logs["error"]["refreshCustomError"] = err.Error()
+			return
+		}
+
 		expiresAt := time.Now().Add(180 * 24 * time.Hour)
+		if h.cfg.App.CustomExpiresTime {
+			expiresAt = time.Now().Add(time.Second * time.Duration(h.cfg.App.ExpiresTime))
+		}
+
+		tokendb := models.Token{
+			ID:           token.ID,
+			UserID:       token.UserID,
+			Provider:     token.Provider,
+			AccessToken:  access,
+			RefreshToken: refresh,
+			ExpirationIn: int(expiresAt.Sub(time.Now()).Seconds()),
+			ExpiresAt:    expiresAt,
+			UpdatedAt:    time.Now(),
+		}
+		_, err = h.repo.TokenRepository().UpdateToken(
+			tokendb,
+			token.Provider,
+			deviceUUID,
+		)
+		if err != nil {
+			logs["error"]["tokenErrorParams"] = fmt.Sprintf("token, provider, deviceUUID: %s, %w, %s", tokendb, token.Provider, deviceUUID)
+			logs["error"]["tokenError"] = err.Error()
+			//w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		newJWT, _, err := util.GenerateJWT(token.UserID, provider, expiresAt.Unix(), deviceUUID)
+		if err != nil {
+			logs["error"]["tokenErrorParams"] = fmt.Sprintf("token.UserID, provider, expiresAt.Unix(), deviceUUID: %s, %w, %s, %s", token.UserID, provider, expiresAt.Unix(), deviceUUID)
+			logs["error"]["tokenError"] = err.Error()
+			//w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		logs["info"]["newJWT"] = newJWT
+
+		err = h.repo.JwtDeviceRepository().DeleteJwtDevice(jwtOld)
+		if err != nil {
+			logs["error"]["tokenError"] = fmt.Sprintf("error deleting jwt: %s", token.ID)
+			logs["error"]["tokenError"] = err.Error()
+			return
+		}
+
+		_, err = h.repo.JwtDeviceRepository().SaveJwtDevice(&models.JwtDevice{
+			JWT:        newJWT,
+			DeviceUUID: deviceUUID,
+			Status:     true,
+		})
+		if err != nil {
+			logs["error"]["jwtTokenErrorMessage"] = fmt.Sprintf("error save jwt: %s", jwtOld)
+			logs["error"]["jwtTokenError"] = err.Error()
+			return
+		}
+
+		response = models.AuthResponse{
+			JWTToken:  newJWT,
+			ExpiresAt: expiresAt.Unix(),
+		}
+
+		return
+
+		/*expiresAt := time.Now().Add(180 * 24 * time.Hour)
 		if h.cfg.App.CustomExpiresTime {
 			expiresAt = time.Now().Add(time.Second * time.Duration(h.cfg.App.ExpiresTime))
 		}
@@ -403,7 +485,7 @@ func (h *Handler) RefreshTokenHandler(w http.ResponseWriter, r *http.Request) {
 			ExpiresAt: expiresAt.Unix(),
 		}
 
-		return
+		return*/
 	case models.PROVIDER_GOOGLE:
 		data.Set("client_id", providerConfig.ClientID)
 		data.Set("client_secret", "")
@@ -766,7 +848,7 @@ func (h *Handler) WebGoogleHandler(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
 	}()
 
-	body := models.AuthWebGoogleBodyRequest
+	body := models.AuthBodyRequest
 
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		logs["error"]["bodyRequestMsg"] = err.Error()
@@ -859,14 +941,29 @@ func (h *Handler) WebGoogleHandler(w http.ResponseWriter, r *http.Request) {
 		expiresAt = time.Now().Add(time.Second * time.Duration(h.cfg.App.ExpiresTime))
 	}
 
+	access, refresh, err := util.GenerateTokens(user.ID, h.cfg.App.ExpiresTime, h.cfg.App.ExpiresRefreshTime)
+	if err != nil {
+		logs["error"]["GenerateTokens"] = fmt.Sprintf("error generating tokens: %+d", err)
+		logs["error"]["GenerateTokens"] = err.Error()
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
+
+	if body.RefreshToken == "" {
+		body.RefreshToken = refresh
+	}
+	if body.AccessToken == "" {
+		body.AccessToken = access
+	}
+
 	// Create token
 	//provider = models.PROVIDER_GOOGLE
 	newToken := models.Token{
 		UserID:       user.ID,
 		Provider:     provider,
 		DeviceUUID:   deviceUUID,
-		AccessToken:  body.IdToken, //TODO
-		RefreshToken: body.IdToken, //TODO
+		AccessToken:  body.AccessToken,
+		RefreshToken: body.RefreshToken,
 		IDToken:      body.IdToken,
 		ExpirationIn: int(expiresAt.Sub(time.Now()).Seconds()),
 		ExpiresAt:    expiresAt,
