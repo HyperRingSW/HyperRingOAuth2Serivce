@@ -341,10 +341,8 @@ func VerifyAccessToken(idToken string, refreshToken string, provider string, pro
 		models.PROVIDER_APPLE:
 		result, err := ValidateAccessToken(idToken)
 		if err != nil {
-			fmt.Println("IF YOU WANT TOO EXPIRED")
 			rs, err := ValidateRefreshToken(refreshToken)
 			if err != nil {
-				fmt.Println("VerifyAccessToken failed to validate refreshToken", err.Error())
 				return nil, err
 			}
 
@@ -396,10 +394,6 @@ func ValidateAccessToken(tokenString string) (map[string]interface{}, error) {
 	if !ok {
 		return nil, errors.New("missing exp in token")
 	}
-
-	fmt.Println()
-	fmt.Println("ValidateAcccessTokenTimeNow", time.Now().UTC().Unix())
-	fmt.Println("ValidateAcccessTokenEXP", int64(exp))
 
 	if int64(exp) < time.Now().UTC().Unix() {
 		return nil, errors.New("access token expired")

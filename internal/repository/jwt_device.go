@@ -71,9 +71,6 @@ func (repo *PostgresDB) AddRefreshTokenJwtDevice(jwt string, refreshToken string
 }
 
 func (repo *PostgresDB) DeleteJwtDevice(jwt string) error {
-	fmt.Println()
-	fmt.Println("Deleting jwt", jwt)
-	fmt.Println()
 
 	updates := map[string]interface{}{
 		"status": false,
@@ -83,8 +80,6 @@ func (repo *PostgresDB) DeleteJwtDevice(jwt string) error {
 	if result.Error != nil {
 		return result.Error
 	}
-
-	fmt.Println(fmt.Sprintf("result: %d", result.RowsAffected))
 
 	return nil
 }

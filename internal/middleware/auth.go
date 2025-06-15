@@ -142,7 +142,6 @@ func (h *Middleware) AuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
 			}
 
 			if tnow > exp {
-				fmt.Println("AuthMiddleware expired jwt")
 				err = h.repo.JwtDeviceRepository().DeleteJwtDevice(dbJwt.JWT)
 				if err != nil {
 					util.LogError(fmt.Errorf("AuthMiddleware failed to delete jwt device: %v", err))

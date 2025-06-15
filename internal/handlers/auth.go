@@ -178,6 +178,7 @@ func (h *Handler) AuthUserHandler(w http.ResponseWriter, r *http.Request, provid
 	if body.AccessToken == "" {
 		body.AccessToken = access
 	}
+
 	// Create token
 	newToken := models.Token{
 		UserID:       user.ID,
@@ -214,7 +215,7 @@ func (h *Handler) AuthUserHandler(w http.ResponseWriter, r *http.Request, provid
 	_, err = h.repo.JwtDeviceRepository().SaveJwtDevice(user.ID, provider, &models.JwtDevice{
 		JWT:          jwtToken,
 		DeviceUUID:   body.DeviceUUID,
-		RefreshToken: body.RefreshToken, //savedToken.RefreshToken,
+		RefreshToken: savedToken.RefreshToken,
 		Status:       true,
 	})
 	if err != nil {
@@ -298,7 +299,6 @@ func (h *Handler) RefreshTokenHandler(w http.ResponseWriter, r *http.Request) {
 		token.AccessToken = decryptAccess
 	}
 
-	dbRefreshToken := token.RefreshToken
 	if token.RefreshToken != "" {
 		decryptRefresh, err := util.Decrypt(token.RefreshToken)
 		if err != nil {
