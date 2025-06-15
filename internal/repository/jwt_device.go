@@ -19,10 +19,16 @@ func (repo *PostgresDB) JwtDeviceRepository() dependency.JwtDeviceRepository {
 
 func (repo *PostgresDB) GetJwtDevice(jwt string) (*models.JwtDevice, error) {
 	var jwtD models.JwtDevice
+
 	result := repo.db.Where("jwt = ? and (status IS NULL or status = true)", jwt).First(&jwtD)
 	if result.RowsAffected == 0 {
 		return nil, errors.New("jwt device not found")
 	}
+
+	if repo.TokenRepository().FindRefreshToken(jwtD.RefreshToken) == nil {
+		return nil, errors.New("jwt device not found by refresh token")
+	}
+
 	return &jwtD, nil
 }
 
@@ -35,8 +41,18 @@ func (repo *PostgresDB) FindJwt(jwt string) (*models.JwtDevice, error) {
 	return &jwtD, nil
 }
 
-func (repo *PostgresDB) SaveJwtDevice(jwtDevice *models.JwtDevice) (*models.JwtDevice, error) {
+func (repo *PostgresDB) SaveJwtDevice(userID uint, provider string, jwtDevice *models.JwtDevice) (*models.JwtDevice, error) {
 	var existingJwtDevice models.JwtDevice
+
+	if jwtDevice.RefreshToken == "" {
+		token := repo.TokenRepository().UserToken(userID, provider, jwtDevice.DeviceUUID)
+		if token == nil {
+			err := fmt.Errorf("user token not found SaveJwtDevice")
+			return nil, err
+		}
+		jwtDevice.RefreshToken = token.RefreshToken
+	}
+
 	result := repo.db.Where("jwt = ?", jwtDevice.JWT).FirstOrCreate(&existingJwtDevice, jwtDevice)
 
 	if result.Error != nil {
@@ -47,33 +63,28 @@ func (repo *PostgresDB) SaveJwtDevice(jwtDevice *models.JwtDevice) (*models.JwtD
 	return &existingJwtDevice, nil
 }
 
+func (repo *PostgresDB) AddRefreshTokenJwtDevice(jwt string, refreshToken string) error {
+	updates := map[string]interface{}{
+		"refresh_token": refreshToken,
+	}
+	return repo.db.Model(&models.JwtDevice{}).Where("jwt = ?", jwt).Updates(updates).Error
+}
+
 func (repo *PostgresDB) DeleteJwtDevice(jwt string) error {
-	/*if mode {
-		updates := map[string]interface{}{
-			"status": false,
-		}
-
-		err := repo.db.Model(&models.JwtDevice{}).Where("jwt = ?", jwt).Updates(updates).Error
-		if err != nil {
-			return err
-		}
-
-		return nil
-	}
-
-	if err := repo.db.Where("jwt = ?", jwt).Delete(&models.JwtDevice{}).Error; err != nil {
-		return errors.New("delete user auth failed: " + err.Error())
-	}
-	return nil*/
+	fmt.Println()
+	fmt.Println("Deleting jwt", jwt)
+	fmt.Println()
 
 	updates := map[string]interface{}{
 		"status": false,
 	}
 
-	err := repo.db.Model(&models.JwtDevice{}).Where("jwt = ?", jwt).Updates(updates).Error
-	if err != nil {
-		return err
+	result := repo.db.Model(&models.JwtDevice{}).Where("jwt = ?", jwt).Updates(updates)
+	if result.Error != nil {
+		return result.Error
 	}
+
+	fmt.Println(fmt.Sprintf("result: %d", result.RowsAffected))
 
 	return nil
 }

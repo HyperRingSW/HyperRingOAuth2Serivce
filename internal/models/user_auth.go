@@ -1,12 +1,14 @@
 package models
 
-import "time"
+import (
+	"time"
+)
 
 type UserAuth struct {
 	ID        uint   `gorm:"primaryKey"` //UUID
 	Email     string `gorm:"unique;not null"`
 	Name      string
-	Data      string `gorm:"type:json;not null"`
+	Data      string `gorm:"type:json; null"`
 	CreatedAt time.Time
 	UpdatedAt time.Time
 }

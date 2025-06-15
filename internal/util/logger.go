@@ -32,6 +32,7 @@ func LogInfo(msg string) {
 }
 
 func LogInfoMap(logs map[string]map[string]any) {
+	return
 	jsonData, err := json.MarshalIndent(logs, "", "  ")
 	if err != nil {
 		log.Println("error decoding logs", err)

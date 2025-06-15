@@ -15,16 +15,17 @@ const (
 )
 
 type AppConfig struct {
-	Addr               string `env:"APP_ADDR" env-default:"localhost:8090"`
-	ExpiresTime        int    `env:"EXPIRES_TIME" env-default:"60"`
-	ExpiresRefreshTime int    `env:"EXPIRES_REFRESH_TIME" env-default:"180"`
-	CustomExpiresTime  bool   `env:"CUSTOM_EXPIRES_TIME" env-default:"false"`
-	DemoEmail          string `env:"DEMO_EMAIL" env-default:"admin@example.com"`
-	DemoMode           bool   `env:"DEMO_MODE" env-default:"false"`
-	AnonymizePhrase    string `env:"ANONYMIZE_PHRASE" env-default:"delete"`
-	DeleteMode         string `env:"DELETE_MODE" env-default:"soft"`
-	DisableJWTMode     bool   `env:"DISABLE_JWT_MODE" env-default:"true"`
-	RedirectURL        string `env:"REDIRECT_URL" env-default:"http://localhost:8090/auth/callback"`
+	Addr              string `env:"APP_ADDR" env-default:"localhost:8090"`
+	ExpiresTime       int    `env:"EXPIRES_TIME" env-default:"60"`
+	CustomRefreshTime int    `env:"CUSTOM_REFRESH_TIME" env-default:"180"`
+	CustomAccessTime  int    `env:"CUSTOM_ACCESS_TIME" env-default:"180"`
+	CustomExpiresTime bool   `env:"CUSTOM_EXPIRES_TIME" env-default:"false"`
+	DemoEmail         string `env:"DEMO_EMAIL" env-default:"admin@example.com"`
+	DemoMode          bool   `env:"DEMO_MODE" env-default:"false"`
+	AnonymizePhrase   string `env:"ANONYMIZE_PHRASE" env-default:"delete"`
+	DeleteMode        string `env:"DELETE_MODE" env-default:"soft"`
+	DisableJWTMode    bool   `env:"DISABLE_JWT_MODE" env-default:"true"`
+	RedirectURL       string `env:"REDIRECT_URL" env-default:"http://localhost:8090/auth/callback"`
 }
 
 type OAuht2Config struct {

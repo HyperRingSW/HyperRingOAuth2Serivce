@@ -23,6 +23,7 @@ type TokenRepository interface {
 	InvalidateIdToken(idToken string) error
 	UserToken(userId uint, provider string, deviceUUID string) *models.Token
 	UserTokens(userId uint) ([]models.Token, error)
+	FindRefreshToken(refreshToken string) *models.Token
 }
 
 type RingRepository interface {
@@ -34,7 +35,8 @@ type RingRepository interface {
 type JwtDeviceRepository interface {
 	GetJwtDevice(deviceUUID string) (*models.JwtDevice, error)
 	FindJwt(deviceUUID string) (*models.JwtDevice, error)
-	SaveJwtDevice(jwtDevice *models.JwtDevice) (*models.JwtDevice, error)
+	SaveJwtDevice(userID uint, provider string, jwtDevice *models.JwtDevice) (*models.JwtDevice, error)
+	AddRefreshTokenJwtDevice(jwt string, refreshToken string) error
 	DeleteJwtDevice(jwt string) error
 	DisableJwtDevice(jwt string) error
 }

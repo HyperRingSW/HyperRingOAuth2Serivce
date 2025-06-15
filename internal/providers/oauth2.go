@@ -121,7 +121,6 @@ func fetchCerts(url string) ([]map[string]interface{}, error) {
 
 // VerifyGoogleIDToken checking Google id_token, using public keys Google, and retrieve claims.
 func VerifyGoogleIDToken(idToken string, providerConfig ProviderConfig) (map[string]interface{}, error) {
-
 	logs := make(map[string]map[string]any)
 	logs["info"] = make(map[string]any)
 	logs["error"] = make(map[string]any)
@@ -207,7 +206,8 @@ func VerifyGoogleIDToken(idToken string, providerConfig ProviderConfig) (map[str
 		}
 		return nil, errors.New("google invalid audience")
 	}
-	if exp, ok := claims["exp"].(float64); ok && int64(exp) < time.Now().Unix() {
+
+	if exp, ok := claims["exp"].(float64); ok && int64(exp) < time.Now().UTC().Unix() {
 		logs["info"]["parsedTokenClaimsEXP"] = fmt.Sprintf("VerifyGoogleIDToken expired")
 		return nil, errors.New("google token expired")
 	}
@@ -302,7 +302,7 @@ func VerifyAppleIdentityToken(idToken string, providerConfig ProviderConfig) (ma
 		}
 		return nil, errors.New("apple invalid audience")
 	}
-	if exp, ok := claims["exp"].(float64); ok && int64(exp) < time.Now().Unix() {
+	if exp, ok := claims["exp"].(float64); ok && int64(exp) < time.Now().UTC().Unix() {
 		logs["info"]["parsedTokenClaims"] = fmt.Sprintf("VerifyAppleIdentityToken expired")
 		return nil, errors.New("apple token expired")
 	}
@@ -327,9 +327,134 @@ func VerifyAppleIdentityToken(idToken string, providerConfig ProviderConfig) (ma
 		}
 		return nil, errors.New("invalid iss")
 	}
-	if exp, ok := claims["exp"].(float64); ok && int64(exp) < time.Now().Unix() {
+	if exp, ok := claims["exp"].(float64); ok && int64(exp) < time.Now().UTC().Unix() {
 		logs["info"]["parsedTokenClaims"] = fmt.Sprintf("VerifyAppleIdentityToken expired")
 		return nil, errors.New("token expired")
+	}
+
+	return claims, nil
+}
+
+func VerifyAccessToken(idToken string, refreshToken string, provider string, providerConfig ProviderConfig) (map[string]interface{}, error) {
+	switch provider {
+	case models.WEB_PROVIDER_GOOGLE,
+		models.PROVIDER_APPLE:
+		result, err := ValidateAccessToken(idToken)
+		if err != nil {
+			fmt.Println("IF YOU WANT TOO EXPIRED")
+			rs, err := ValidateRefreshToken(refreshToken)
+			if err != nil {
+				fmt.Println("VerifyAccessToken failed to validate refreshToken", err.Error())
+				return nil, err
+			}
+
+			return rs, nil
+		}
+
+		return result, nil
+		//case models.PROVIDER_APPLE:
+		//return VerifyAppleIdentityToken(idToken, providerConfig)
+	}
+
+	return nil, errors.New("invalid provider")
+}
+
+var jwtSecret = []byte("86194778010") // вынеси в конфиг при необходимости
+
+func ValidateAccessToken(tokenString string) (map[string]interface{}, error) {
+	// Создаём парсер без авто-проверки claims
+	parser := jwt.NewParser(jwt.WithoutClaimsValidation())
+
+	// Парсим токен
+	token, err := parser.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+		// Проверяем метод подписи
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
+		return jwtSecret, nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("token parse error: %w", err)
+	}
+	if !token.Valid {
+		return nil, errors.New("token is not valid")
+	}
+
+	// Получаем claims
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok {
+		return nil, errors.New("invalid claims format")
+	}
+
+	// Проверка "type"
+	if typ, ok := claims["type"].(string); !ok || typ != "access" {
+		return nil, fmt.Errorf("invalid token type: %v", claims["type"])
+	}
+
+	// Проверка "exp"
+	exp, ok := claims["exp"].(float64)
+	if !ok {
+		return nil, errors.New("missing exp in token")
+	}
+
+	fmt.Println()
+	fmt.Println("ValidateAcccessTokenTimeNow", time.Now().UTC().Unix())
+	fmt.Println("ValidateAcccessTokenEXP", int64(exp))
+
+	if int64(exp) < time.Now().UTC().Unix() {
+		return nil, errors.New("access token expired")
+	}
+
+	// Проверка "sub"
+	if _, ok := claims["sub"].(float64); !ok {
+		return nil, errors.New("invalid sub in token")
+	}
+
+	return claims, nil
+}
+
+func ValidateRefreshToken(tokenString string) (map[string]interface{}, error) {
+	// Создаём парсер без авто-проверки claims
+	parser := jwt.NewParser(jwt.WithoutClaimsValidation())
+
+	// Парсим токен
+	token, err := parser.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+		// Проверка метода подписи
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
+		return jwtSecret, nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("token parse error: %w", err)
+	}
+	if !token.Valid {
+		return nil, errors.New("token is not valid")
+	}
+
+	// Получаем claims
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok {
+		return nil, errors.New("invalid claims format")
+	}
+
+	// Проверка "type"
+	if typ, ok := claims["type"].(string); !ok || typ != "refresh" {
+		return nil, fmt.Errorf("invalid token type: %v", claims["type"])
+	}
+
+	// Проверка "exp"
+	exp, ok := claims["exp"].(float64)
+	if !ok {
+		return nil, errors.New("missing exp in token")
+	}
+	if int64(exp) < time.Now().UTC().Unix() {
+		return nil, errors.New("refresh token expired")
+	}
+
+	// Проверка "sub"
+	if _, ok := claims["sub"].(float64); !ok {
+		return nil, errors.New("invalid sub in token")
 	}
 
 	return claims, nil

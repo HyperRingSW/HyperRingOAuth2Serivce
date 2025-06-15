@@ -57,13 +57,11 @@ func ParseJWT(tokenString string, requestPath string) (jwt.MapClaims, error) {
 }
 
 func ParseUnverifiedJWT(tokenString string) (jwt.MapClaims, error) {
-	// Парсинг токена без проверки подписи
 	token, _, err := jwt.NewParser().ParseUnverified(tokenString, jwt.MapClaims{})
 	if err != nil {
 		return nil, err
 	}
 
-	// Извлечение claims
 	if claims, ok := token.Claims.(jwt.MapClaims); ok {
 		return claims, nil
 	}
@@ -116,8 +114,8 @@ func DecodeJWT(tokenString string) (map[string]interface{}, error) {
 
 func GenerateTokens(userID uint, t int, rt int) (accessToken string, refreshToken string, err error) {
 	accessClaims := jwt.MapClaims{
-		"sub":  float64(userID),
-		"exp":  time.Now().Add(time.Second * time.Duration(int64(t))).Unix(),
+		"sub":  userID,
+		"exp":  time.Now().UTC().Add(time.Second * time.Duration(int64(t))).Unix(),
 		"type": "access",
 	}
 	access := jwt.NewWithClaims(jwt.SigningMethodHS256, accessClaims)
@@ -127,8 +125,8 @@ func GenerateTokens(userID uint, t int, rt int) (accessToken string, refreshToke
 	}
 
 	refreshClaims := jwt.MapClaims{
-		"sub":  float64(userID),
-		"exp":  time.Now().Add(time.Second * time.Duration(int64(rt))).Unix(),
+		"sub":  userID,
+		"exp":  time.Now().UTC().Add(time.Second * time.Duration(int64(rt))).Unix(),
 		"type": "refresh",
 	}
 	refresh := jwt.NewWithClaims(jwt.SigningMethodHS256, refreshClaims)
@@ -155,23 +153,23 @@ func RefreshCustomTokens(refreshToken string, t int, rt int) (newAccessToken str
 	}
 
 	if exp, ok := claims["exp"].(float64); ok {
-		if int64(exp) < time.Now().Unix() {
+		if int64(exp) < time.Now().UTC().Unix() {
 			err = errors.New("refresh token expired")
 			return
 		}
 	}
 
-	userID, ok := claims["sub"].(float64)
+	sub, ok := claims["sub"].(float64)
 	if !ok {
-		return "", "", errors.New("invalid subject in token")
+		return "", "", errors.New("invalid subject in refresh token")
 	}
-	//userID := uint(sub)
+	userID := uint(sub)
 
 	// Генерируем новый access token (15 мин)
 	newAccessClaims := jwt.MapClaims{
 		"sub":  userID,
 		"type": "access",
-		"exp":  time.Now().Add(time.Second * time.Duration(int64(t))).Unix(),
+		"exp":  time.Now().UTC().Add(time.Second * time.Duration(int64(t))).Unix(),
 	}
 	newAccess := jwt.NewWithClaims(jwt.SigningMethodHS256, newAccessClaims)
 	newAccessToken, err = newAccess.SignedString(jwtSecret)
@@ -183,7 +181,7 @@ func RefreshCustomTokens(refreshToken string, t int, rt int) (newAccessToken str
 	newRefreshClaims := jwt.MapClaims{
 		"sub":  userID,
 		"type": "refresh",
-		"exp":  time.Now().Add(time.Second * time.Duration(int64(rt))).Unix(),
+		"exp":  time.Now().UTC().Add(time.Second * time.Duration(int64(rt))).Unix(),
 	}
 	newRefresh := jwt.NewWithClaims(jwt.SigningMethodHS256, newRefreshClaims)
 	newRefreshToken, err = newRefresh.SignedString(jwtSecret)

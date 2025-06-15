@@ -55,7 +55,6 @@ func (h *Handler) AuthUserHandler(w http.ResponseWriter, r *http.Request, provid
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		logs["error"]["bodyRequestMsg"] = err.Error()
 		logs["error"]["bodyRequest"] = body
-		//w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 	logs["info"]["body"] = body
@@ -76,14 +75,13 @@ func (h *Handler) AuthUserHandler(w http.ResponseWriter, r *http.Request, provid
 	case models.PROVIDER_GOOGLE:
 		if body.IdToken == "" {
 			logs["error"]["idTokenRequired"] = "idToken is required"
-			//w.WriteHeader(http.StatusBadRequest)
 			return
 		}
+
 		claims, err = providers.VerifyGoogleIDToken(body.IdToken, providerConfig)
 		if err != nil {
 			logs["error"]["providerConfigMessage"] = fmt.Sprintf("error getting provider config, provider and confing: %s, %w", provider, providerConfig)
 			logs["error"]["VerifyGoogleIDToken"] = err.Error()
-			//w.WriteHeader(http.StatusBadRequest)
 			return
 		}
 		logs["info"]["claims"] = claims
@@ -93,7 +91,6 @@ func (h *Handler) AuthUserHandler(w http.ResponseWriter, r *http.Request, provid
 		if err != nil {
 			logs["error"]["GetUserInfoParams"] = fmt.Sprintf("body.AccessToken, providerConfig.UserInfoURL, provider: %s, %w, %s, %s", body.AccessToken, providerConfig.UserInfoURL, provider)
 			logs["error"]["GetUserInfo"] = err.Error()
-			//w.WriteHeader(http.StatusBadRequest)
 			return
 		}
 
@@ -139,9 +136,9 @@ func (h *Handler) AuthUserHandler(w http.ResponseWriter, r *http.Request, provid
 
 	// Create user
 	userAuth := models.UserAuth{
-		Email:     email,
-		Name:      name,
-		Data:      string(claimsJSON),
+		Email: email,
+		Name:  name,
+		//Data:      string(claimsJSON),
 		CreatedAt: time.Now(),
 	}
 	user, err := h.repo.UserRepository().CreateOrUpdateUser(userAuth)
@@ -156,18 +153,18 @@ func (h *Handler) AuthUserHandler(w http.ResponseWriter, r *http.Request, provid
 	if exp, ok := claims["exp"].(float64); ok {
 		expiresAt = time.Unix(int64(exp), 0)
 	} else {
-		expiresAt = time.Now().Add(time.Hour)
+		expiresAt = time.Now().UTC().Add(time.Hour)
 	}
 
 	if h.cfg.App.CustomExpiresTime {
-		expiresAt = time.Now().Add(time.Second * time.Duration(h.cfg.App.ExpiresTime))
+		expiresAt = time.Now().UTC().Add(time.Second * time.Duration(h.cfg.App.CustomAccessTime))
 	}
 
 	if body.DeviceUUID == "" {
 		body.DeviceUUID = uuid.New().String()
 	}
 
-	access, refresh, err := util.GenerateTokens(user.ID, h.cfg.App.ExpiresTime, h.cfg.App.ExpiresRefreshTime)
+	access, refresh, err := util.GenerateTokens(user.ID, h.cfg.App.CustomAccessTime, h.cfg.App.CustomRefreshTime)
 	if err != nil {
 		logs["error"]["GenerateTokens"] = fmt.Sprintf("error generating tokens: %+d", err)
 		logs["error"]["GenerateTokens"] = err.Error()
@@ -200,7 +197,6 @@ func (h *Handler) AuthUserHandler(w http.ResponseWriter, r *http.Request, provid
 	if err != nil {
 		logs["error"]["CreateOrUpdateTokenParams"] = fmt.Sprintf("newToken: %w,", newToken)
 		logs["error"]["SaveToken"] = err.Error()
-		//w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 	logs["info"]["savedToken"] = savedToken
@@ -215,10 +211,11 @@ func (h *Handler) AuthUserHandler(w http.ResponseWriter, r *http.Request, provid
 	}
 	logs["info"]["jwtToken"] = jwtToken
 
-	_, err = h.repo.JwtDeviceRepository().SaveJwtDevice(&models.JwtDevice{
-		JWT:        jwtToken,
-		DeviceUUID: body.DeviceUUID,
-		Status:     true,
+	_, err = h.repo.JwtDeviceRepository().SaveJwtDevice(user.ID, provider, &models.JwtDevice{
+		JWT:          jwtToken,
+		DeviceUUID:   body.DeviceUUID,
+		RefreshToken: body.RefreshToken, //savedToken.RefreshToken,
+		Status:       true,
 	})
 	if err != nil {
 		logs["error"]["SaveJwtDevice"] = err.Error()
@@ -258,32 +255,32 @@ func (h *Handler) RefreshTokenHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userID, ok := r.Context().Value("userID").(uint)
-	if !ok {
-		logs["error"]["userId"] = "invalid user ID in context"
+	jwtData, err := util.ParseUnverifiedJWT(jwtOld)
+	if err != nil {
+		logs["error"]["ParseUnverifiedJWT"] = err.Error()
 		return
 	}
-	logs["info"]["userId"] = userID
 
-	provider, ok := r.Context().Value("provider").(string)
+	userIDFloat, ok := jwtData["user_id"].(float64)
 	if !ok {
-		logs["error"]["provider"] = "invalid provider in context"
+		logs["error"]["msg"] = "invalid user ID in jwt"
+		return
+	}
+	userID := uint(userIDFloat)
+
+	provider, ok := jwtData["provider"].(string)
+	if !ok {
+		logs["error"]["msg"] = "invalid provider in jwt"
 		return
 	}
 	logs["info"]["provider"] = provider
 
-	deviceUUID, ok := r.Context().Value("deviceUUID").(string)
+	deviceUUID, ok := jwtData["device_uuid"].(string)
 	if !ok {
-		logs["error"]["deviceUUID"] = "invalid device UUID in context"
+		logs["error"]["msg"] = "invalid device UUID in jwt"
 		return
 	}
 	logs["info"]["deviceUUID"] = deviceUUID
-
-	/*	jwtT, err := util.GetJWT(r)
-		if err != nil {
-			logs["error"]["GetJWT"] = err.Error()
-			return
-		}*/
 
 	token := h.repo.TokenRepository().UserToken(userID, provider, deviceUUID)
 	if token == nil {
@@ -301,6 +298,7 @@ func (h *Handler) RefreshTokenHandler(w http.ResponseWriter, r *http.Request) {
 		token.AccessToken = decryptAccess
 	}
 
+	dbRefreshToken := token.RefreshToken
 	if token.RefreshToken != "" {
 		decryptRefresh, err := util.Decrypt(token.RefreshToken)
 		if err != nil {
@@ -331,70 +329,77 @@ func (h *Handler) RefreshTokenHandler(w http.ResponseWriter, r *http.Request) {
 
 	data := url.Values{}
 	switch token.Provider {
-	case models.PROVIDER_APPLE:
-		_, err := providers.VerifyAppleIdentityToken(token.IDToken, providerConfig)
-		if err != nil {
-			logs["error"]["appleIdErrorMessage"] = fmt.Sprintf("error verifying apple: %s", token.IDToken)
-			logs["error"]["appleIdError"] = err.Error()
-			return
-		}
-
-		expiresAt := time.Now().Add(180 * 24 * time.Hour)
-		if h.cfg.App.CustomExpiresTime {
-			expiresAt = time.Now().Add(time.Second * time.Duration(h.cfg.App.ExpiresTime))
-		}
-
-		jwtToken, _, err := util.GenerateJWT(userID, provider, expiresAt.Unix(), deviceUUID)
-		if err != nil {
-			logs["error"]["jwtTokenErrorMessage"] = fmt.Sprintf("error generating jwt: %s", token.IDToken)
-			logs["error"]["jwtTokenError"] = err.Error()
-			return
-		}
-
-		err = h.repo.JwtDeviceRepository().DeleteJwtDevice(jwtOld)
-		if err != nil {
-			logs["error"]["jwtTokenErrorMessage"] = fmt.Sprintf("error deleting jwt: %s", jwtOld)
-			logs["error"]["jwtTokenError"] = err.Error()
-			return
-		}
-		_, err = h.repo.JwtDeviceRepository().SaveJwtDevice(&models.JwtDevice{
-			JWT:        jwtToken,
-			DeviceUUID: deviceUUID,
-			Status:     true,
-		})
-		if err != nil {
-			logs["error"]["jwtTokenErrorMessage"] = fmt.Sprintf("error save jwt: %s", jwtOld)
-			logs["error"]["jwtTokenError"] = err.Error()
-			return
-		}
-
-		response = models.AuthResponse{
-			JWTToken:  jwtToken,
-			ExpiresAt: expiresAt.Unix(),
-		}
-
+	/*case models.PROVIDER_APPLE:
+	_, err := providers.VerifyAppleIdentityToken(token.IDToken, providerConfig)
+	if err != nil {
+		logs["error"]["appleIdErrorMessage"] = fmt.Sprintf("error verifying apple: %s", token.IDToken)
+		logs["error"]["appleIdError"] = err.Error()
 		return
-	case models.WEB_PROVIDER_GOOGLE:
-		_, err := providers.VerifyGoogleIDToken(token.IDToken, providerConfig)
+	}
+
+	expiresAt := time.Now().UTC().Add(180 * 24 * time.Hour)
+	if h.cfg.App.CustomExpiresTime {
+		expiresAt = time.Now().UTC().Add(time.Second * time.Duration(h.cfg.App.ExpiresTime))
+	}
+
+	jwtToken, _, err := util.GenerateJWT(userID, provider, expiresAt.Unix(), deviceUUID)
+	if err != nil {
+		logs["error"]["jwtTokenErrorMessage"] = fmt.Sprintf("error generating jwt: %s", token.IDToken)
+		logs["error"]["jwtTokenError"] = err.Error()
+		return
+	}
+
+	err = h.repo.JwtDeviceRepository().DeleteJwtDevice(jwtOld)
+	if err != nil {
+		logs["error"]["jwtTokenErrorMessage"] = fmt.Sprintf("error deleting jwt: %s", jwtOld)
+		logs["error"]["jwtTokenError"] = err.Error()
+		return
+	}
+	_, err = h.repo.JwtDeviceRepository().SaveJwtDevice(&models.JwtDevice{
+		JWT:        jwtToken,
+		DeviceUUID: deviceUUID,
+		Status:     true,
+	})
+	if err != nil {
+		logs["error"]["jwtTokenErrorMessage"] = fmt.Sprintf("error save jwt: %s", jwtOld)
+		logs["error"]["jwtTokenError"] = err.Error()
+		return
+	}
+
+	response = models.AuthResponse{
+		JWTToken:  jwtToken,
+		ExpiresAt: expiresAt.Unix(),
+	}
+
+	return*/
+	case models.WEB_PROVIDER_GOOGLE,
+		models.PROVIDER_APPLE:
+		_, err := providers.VerifyAccessToken(token.AccessToken, token.RefreshToken, token.Provider, providerConfig)
 		if err != nil {
-			logs["error"]["idToken"] = fmt.Sprintf("error verifying web google: %s", token.IDToken)
+			logs["error"]["idToken"] = fmt.Sprintf("error verifying custom idToken: %s", token.IDToken)
 			logs["error"]["msg"] = err.Error()
 			return
 		}
 
-		access, refresh, err := util.RefreshCustomTokens(token.RefreshToken, h.cfg.App.ExpiresTime, h.cfg.App.ExpiresRefreshTime)
+		_, err = h.repo.JwtDeviceRepository().GetJwtDevice(jwtOld)
+		if err != nil {
+			logs["error"]["msg"] = err.Error()
+			return
+		}
+
+		access, refresh, err := util.RefreshCustomTokens(token.RefreshToken, h.cfg.App.CustomAccessTime, h.cfg.App.CustomRefreshTime)
 		if err != nil {
 			logs["error"]["refreshTokenErrorMessage"] = fmt.Sprintf("error refreshing custom tokens: %s", token.RefreshToken)
 			logs["error"]["refreshCustomError"] = err.Error()
 			return
 		}
 
-		expiresAt := time.Now().Add(180 * 24 * time.Hour)
+		expiresAt := time.Now().UTC().Add(180 * 24 * time.Hour)
 		if h.cfg.App.CustomExpiresTime {
-			expiresAt = time.Now().Add(time.Second * time.Duration(h.cfg.App.ExpiresTime))
+			expiresAt = time.Now().UTC().Add(time.Second * time.Duration(h.cfg.App.CustomAccessTime))
 		}
 
-		tokendb := models.Token{
+		updateTokenDB := models.Token{
 			ID:           token.ID,
 			UserID:       token.UserID,
 			Provider:     token.Provider,
@@ -404,15 +409,14 @@ func (h *Handler) RefreshTokenHandler(w http.ResponseWriter, r *http.Request) {
 			ExpiresAt:    expiresAt,
 			UpdatedAt:    time.Now(),
 		}
-		_, err = h.repo.TokenRepository().UpdateToken(
-			tokendb,
+		newToken, err := h.repo.TokenRepository().UpdateToken(
+			updateTokenDB,
 			token.Provider,
 			deviceUUID,
 		)
 		if err != nil {
-			logs["error"]["tokenErrorParams"] = fmt.Sprintf("token, provider, deviceUUID: %s, %w, %s", tokendb, token.Provider, deviceUUID)
+			logs["error"]["tokenErrorParams"] = fmt.Sprintf("token, provider, deviceUUID: %s, %w, %s", updateTokenDB, token.Provider, deviceUUID)
 			logs["error"]["tokenError"] = err.Error()
-			//w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 
@@ -420,7 +424,6 @@ func (h *Handler) RefreshTokenHandler(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			logs["error"]["tokenErrorParams"] = fmt.Sprintf("token.UserID, provider, expiresAt.Unix(), deviceUUID: %s, %w, %s, %s", token.UserID, provider, expiresAt.Unix(), deviceUUID)
 			logs["error"]["tokenError"] = err.Error()
-			//w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 		logs["info"]["newJWT"] = newJWT
@@ -432,10 +435,18 @@ func (h *Handler) RefreshTokenHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		_, err = h.repo.JwtDeviceRepository().SaveJwtDevice(&models.JwtDevice{
-			JWT:        newJWT,
-			DeviceUUID: deviceUUID,
-			Status:     true,
+		err = h.repo.JwtDeviceRepository().AddRefreshTokenJwtDevice(newJWT, newToken.RefreshToken)
+		if err != nil {
+			logs["error"]["tokenError"] = fmt.Sprintf("error adding jwt: %s", newJWT)
+			logs["error"]["tokenError"] = err.Error()
+			return
+		}
+
+		_, err = h.repo.JwtDeviceRepository().SaveJwtDevice(token.UserID, provider, &models.JwtDevice{
+			JWT:          newJWT,
+			DeviceUUID:   deviceUUID,
+			RefreshToken: newToken.RefreshToken,
+			Status:       true,
 		})
 		if err != nil {
 			logs["error"]["jwtTokenErrorMessage"] = fmt.Sprintf("error save jwt: %s", jwtOld)
@@ -450,9 +461,9 @@ func (h *Handler) RefreshTokenHandler(w http.ResponseWriter, r *http.Request) {
 
 		return
 
-		/*expiresAt := time.Now().Add(180 * 24 * time.Hour)
+		/*expiresAt := time.Now().UTC().Add(180 * 24 * time.Hour)
 		if h.cfg.App.CustomExpiresTime {
-			expiresAt = time.Now().Add(time.Second * time.Duration(h.cfg.App.ExpiresTime))
+			expiresAt = time.Now().UTC().Add(time.Second * time.Duration(h.cfg.App.ExpiresTime))
 		}
 
 		jwtToken, _, err := util.GenerateJWT(userID, provider, expiresAt.Unix(), deviceUUID)
@@ -507,7 +518,6 @@ func (h *Handler) RefreshTokenHandler(w http.ResponseWriter, r *http.Request) {
 
 	if resp.StatusCode != http.StatusOK {
 		logs["error"]["tokenErrorMessage"] = fmt.Sprintf("error posting data: %s", data)
-		//w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
@@ -515,7 +525,6 @@ func (h *Handler) RefreshTokenHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		logs["error"]["bodyErrorMessage"] = fmt.Sprintf("error reading body: %s", data)
 		logs["error"]["bodyError"] = err.Error()
-		//w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 	logs["info"]["body"] = string(bodyBytes)
@@ -524,7 +533,6 @@ func (h *Handler) RefreshTokenHandler(w http.ResponseWriter, r *http.Request) {
 	if err = json.Unmarshal(bodyBytes, &bodyResponse); err != nil {
 		logs["error"]["bodyErrorMessage"] = fmt.Sprintf("error unmarshalling body: %s", data)
 		logs["error"]["bodyError"] = err.Error()
-		//w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 	logs["info"]["bodyResponse"] = bodyResponse
@@ -533,7 +541,6 @@ func (h *Handler) RefreshTokenHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		logs["error"]["bodyErrorMessage"] = fmt.Sprintf("error unmarshalling body: %s", data)
 		logs["error"]["bodyError"] = err.Error()
-		//w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 	logs["info"]["bodyJson"] = dataJSON
@@ -543,14 +550,13 @@ func (h *Handler) RefreshTokenHandler(w http.ResponseWriter, r *http.Request) {
 	if err = json.Unmarshal(bodyBytes, &tokenResponse); err != nil {
 		logs["error"]["bodyErrorMessage"] = fmt.Sprintf("error unmarshalling body: %s", data)
 		logs["error"]["bodyError"] = err.Error()
-		//w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 	logs["info"]["tokenResponse"] = tokenResponse
 
-	expiresAt := time.Now().Add(time.Duration(tokenResponse.ExpiresIn) * time.Second)
+	expiresAt := time.Now().UTC().Add(time.Duration(tokenResponse.ExpiresIn) * time.Second)
 	if h.cfg.App.CustomExpiresTime {
-		expiresAt = time.Now().Add(time.Second * time.Duration(h.cfg.App.ExpiresTime))
+		expiresAt = time.Now().UTC().Add(time.Second * time.Duration(h.cfg.App.CustomAccessTime))
 	}
 
 	// Update token
@@ -573,7 +579,6 @@ func (h *Handler) RefreshTokenHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		logs["error"]["tokenErrorParams"] = fmt.Sprintf("token, provider, deviceUUID: %s, %w, %s", tokendb, token.Provider, deviceUUID)
 		logs["error"]["tokenError"] = err.Error()
-		//w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
@@ -581,7 +586,6 @@ func (h *Handler) RefreshTokenHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		logs["error"]["tokenErrorParams"] = fmt.Sprintf("token.UserID, provider, expiresAt.Unix(), deviceUUID: %s, %w, %s, %s", token.UserID, provider, expiresAt.Unix(), deviceUUID)
 		logs["error"]["tokenError"] = err.Error()
-		//w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 	logs["info"]["newJWT"] = newJWT
@@ -593,7 +597,7 @@ func (h *Handler) RefreshTokenHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err = h.repo.JwtDeviceRepository().SaveJwtDevice(&models.JwtDevice{
+	_, err = h.repo.JwtDeviceRepository().SaveJwtDevice(token.UserID, provider, &models.JwtDevice{
 		JWT:        newJWT,
 		DeviceUUID: deviceUUID,
 		Status:     true,
@@ -858,9 +862,11 @@ func (h *Handler) WebGoogleHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	deviceUUID := body.DeviceUUID
-	if deviceUUID == "" {
+	if body.DeviceUUID == "" {
 		deviceUUID = uuid.New().String()
+		body.DeviceUUID = deviceUUID
 	}
+
 	logs["info"]["deviceUUID"] = deviceUUID
 
 	logs["info"]["idToken"] = body.IdToken
@@ -877,24 +883,18 @@ func (h *Handler) WebGoogleHandler(w http.ResponseWriter, r *http.Request) {
 
 	var claims map[string]interface{}
 
-	switch strings.ToLower(provider) {
-	case models.WEB_PROVIDER_GOOGLE:
-		if body.IdToken == "" {
-			logs["error"]["idTokenRequired"] = "idToken is required"
-			return
-		}
-		claims, err = providers.VerifyGoogleIDToken(body.IdToken, providerConfig)
-		if err != nil {
-			logs["error"]["providerConfigMessage"] = fmt.Sprintf("error getting provider config, provider and confing: %s, %+v", provider, providerConfig)
-			logs["error"]["VerifyGoogleIDToken"] = err.Error()
-			return
-		}
-		logs["info"]["claims"] = claims
-
-	default:
-		logs["error"]["providerConfigMessage"] = "provider not supported"
+	if body.IdToken == "" {
+		logs["error"]["idTokenRequired"] = "idToken is required"
 		return
 	}
+
+	claims, err = providers.VerifyGoogleIDToken(body.IdToken, providerConfig)
+	if err != nil {
+		logs["error"]["providerConfigMessage"] = fmt.Sprintf("error getting provider config, provider and confing: %s, %+v", provider, providerConfig)
+		logs["error"]["VerifyGoogleIDToken"] = err.Error()
+		return
+	}
+	logs["info"]["claims"] = claims
 
 	// get email
 	email, ok := claims["email"].(string)
@@ -917,9 +917,9 @@ func (h *Handler) WebGoogleHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Create user
 	userAuth := models.UserAuth{
-		Email:     email,
-		Name:      name,
-		Data:      string(claimsJSON),
+		Email: email,
+		Name:  name,
+		//Data:      string(claimsJSON),
 		CreatedAt: time.Now(),
 	}
 	user, err := h.repo.UserRepository().CreateOrUpdateUser(userAuth)
@@ -934,14 +934,14 @@ func (h *Handler) WebGoogleHandler(w http.ResponseWriter, r *http.Request) {
 	if exp, ok := claims["exp"].(float64); ok {
 		expiresAt = time.Unix(int64(exp), 0)
 	} else {
-		expiresAt = time.Now().Add(time.Hour)
+		expiresAt = time.Now().UTC().Add(time.Hour)
 	}
 
 	if h.cfg.App.CustomExpiresTime {
-		expiresAt = time.Now().Add(time.Second * time.Duration(h.cfg.App.ExpiresTime))
+		expiresAt = time.Now().UTC().Add(time.Second * time.Duration(h.cfg.App.CustomAccessTime))
 	}
 
-	access, refresh, err := util.GenerateTokens(user.ID, h.cfg.App.ExpiresTime, h.cfg.App.ExpiresRefreshTime)
+	body.AccessToken, body.RefreshToken, err = util.GenerateTokens(user.ID, h.cfg.App.CustomAccessTime, h.cfg.App.CustomRefreshTime)
 	if err != nil {
 		logs["error"]["GenerateTokens"] = fmt.Sprintf("error generating tokens: %+d", err)
 		logs["error"]["GenerateTokens"] = err.Error()
@@ -949,15 +949,6 @@ func (h *Handler) WebGoogleHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if body.RefreshToken == "" {
-		body.RefreshToken = refresh
-	}
-	if body.AccessToken == "" {
-		body.AccessToken = access
-	}
-
-	// Create token
-	//provider = models.PROVIDER_GOOGLE
 	newToken := models.Token{
 		UserID:       user.ID,
 		Provider:     provider,
@@ -991,10 +982,11 @@ func (h *Handler) WebGoogleHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	logs["info"]["jwtToken"] = jwtToken
 
-	_, err = h.repo.JwtDeviceRepository().SaveJwtDevice(&models.JwtDevice{
-		JWT:        jwtToken,
-		DeviceUUID: body.DeviceUUID,
-		Status:     true,
+	_, err = h.repo.JwtDeviceRepository().SaveJwtDevice(user.ID, provider, &models.JwtDevice{
+		JWT:          jwtToken,
+		DeviceUUID:   body.DeviceUUID,
+		RefreshToken: savedToken.RefreshToken,
+		Status:       true,
 	})
 	if err != nil {
 		logs["error"]["SaveJwtDevice"] = err.Error()

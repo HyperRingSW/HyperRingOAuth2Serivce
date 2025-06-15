@@ -1,9 +1,12 @@
 package util
 
 import (
+	"crypto/aes"
+	"crypto/cipher"
 	"crypto/ecdsa"
 	"crypto/sha256"
 	"crypto/x509"
+	"encoding/base64"
 	"encoding/json"
 	"encoding/pem"
 	"errors"
@@ -14,6 +17,8 @@ import (
 	"strings"
 	"time"
 )
+
+var encryptionKey, _ = base64.StdEncoding.DecodeString("IqXlJzrpPI+M2jICFM7E0VAgHBZuv2J0e5NEvlgsy+Y=")
 
 func UserInfoToJSON(data interface{}) ([]byte, error) {
 	return json.Marshal(data)
@@ -69,4 +74,54 @@ func GetJWT(r *http.Request) (string, error) {
 
 	token := strings.TrimPrefix(authHeader, "Bearer ")
 	return token, nil
+}
+
+func EncryptString(t string) (string, error) {
+	block, err := aes.NewCipher(encryptionKey)
+	if err != nil {
+		return "", err
+	}
+
+	aesGCM, err := cipher.NewGCM(block)
+	if err != nil {
+		return "", err
+	}
+
+	hash := sha256.Sum256([]byte(t))
+	nonceSize := aesGCM.NonceSize()
+	nonce := hash[:nonceSize]
+
+	cipherText := aesGCM.Seal(nil, nonce, []byte(t), nil)
+	final := append(nonce, cipherText...)
+	return base64.StdEncoding.EncodeToString(final), nil
+}
+
+func DecryptString(encrypted string) (string, error) {
+	data, err := base64.StdEncoding.DecodeString(encrypted)
+	if err != nil {
+		return "", err
+	}
+
+	block, err := aes.NewCipher(encryptionKey)
+	if err != nil {
+		return "", err
+	}
+
+	aesGCM, err := cipher.NewGCM(block)
+	if err != nil {
+		return "", err
+	}
+
+	nonceSize := aesGCM.NonceSize()
+	if len(data) < nonceSize {
+		return "", errors.New("malformed encrypted data")
+	}
+
+	nonce, cipherText := data[:nonceSize], data[nonceSize:]
+	plainText, err := aesGCM.Open(nil, nonce, cipherText, nil)
+	if err != nil {
+		return "", err
+	}
+
+	return string(plainText), nil
 }

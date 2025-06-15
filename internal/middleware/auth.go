@@ -34,6 +34,7 @@ func (h *Middleware) MiddleHandler() dependency.MiddleHandler {
 
 func (h *Middleware) AuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		tnow := time.Now().UTC().Unix()
 		requestPath := r.URL.Path
 
 		logs := make(map[string]map[string]any)
@@ -44,34 +45,25 @@ func (h *Middleware) AuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
 			util.LogInfoMap(logs)
 		}()
 
-		/*authHeader := r.Header.Get("Authorization")
-		if !strings.HasPrefix(authHeader, "Bearer ") {
-			util.LogInfo(fmt.Sprintf("authorization header format is incorrect: %s", authHeader))
-			util.LogError(errors.New("authorization header format is incorrect"))
-
-			w.WriteHeader(http.StatusUnauthorized)
-			return
-		}
-
-		token := strings.TrimPrefix(authHeader, "Bearer ")*/
-		token, err := util.GetJWT(r)
+		requestJWT, err := util.GetJWT(r)
 		if err != nil {
+			logs["error"]["getJWT"] = err.Error()
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
 
-		dbToken, err := h.repo.JwtDeviceRepository().FindJwt(token)
+		dbJwt, err := h.repo.JwtDeviceRepository().FindJwt(requestJWT)
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			util.LogInfo("AuthMiddleware failed find token")
+			util.LogInfo("AuthMiddleware failed find requestJWT")
 			util.LogError(err)
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
 
-		if dbToken == nil {
-			rClaims, err := util.ParseUnverifiedJWT(token)
+		if dbJwt == nil {
+			rClaims, err := util.ParseUnverifiedJWT(requestJWT)
 			if err != nil {
-				util.LogInfo("AuthMiddleware invalid token")
+				util.LogInfo("AuthMiddleware invalid requestJWT")
 				util.LogError(err)
 				w.WriteHeader(http.StatusUnauthorized)
 				return
@@ -86,6 +78,24 @@ func (h *Middleware) AuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
 				return
 			}
 
+			idFloat, ok := rClaims["user_id"].(float64)
+			if !ok {
+				util.LogInfo("invalid user id")
+				util.LogError(err)
+				w.WriteHeader(http.StatusUnauthorized)
+				return
+			}
+			userID := uint(idFloat)
+
+			var provider string
+			if providerValue, ok := rClaims["provider"].(string); ok {
+				provider = providerValue
+			} else {
+				util.LogError(fmt.Errorf("AuthMiddleware provider not found or invalid type"))
+				w.WriteHeader(http.StatusUnauthorized)
+				return
+			}
+
 			var rDevice string
 			if deviceValue, ok := rClaims["device_uuid"].(string); ok {
 				rDevice = deviceValue
@@ -96,25 +106,25 @@ func (h *Middleware) AuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
 			}
 
 			status := true
-			if time.Now().Unix() > exp {
+			if time.Now().UTC().Unix() > exp {
 				status = false
 			}
 
 			newJWTDevice := &models.JwtDevice{
-				JWT:        token,
+				JWT:        requestJWT,
 				DeviceUUID: rDevice,
 				Status:     status,
 			}
 
-			_, err = h.repo.JwtDeviceRepository().SaveJwtDevice(newJWTDevice)
+			dbJwt, err = h.repo.JwtDeviceRepository().SaveJwtDevice(userID, provider, newJWTDevice)
 			if err != nil {
 				util.LogError(fmt.Errorf("AuthMiddleware failed to save jwt device: %v", err))
 				w.WriteHeader(http.StatusUnauthorized)
 				return
 			}
 		}
-		if dbToken != nil {
-			rClaims, err := util.ParseUnverifiedJWT(dbToken.JWT)
+		if dbJwt != nil {
+			rClaims, err := util.ParseUnverifiedJWT(dbJwt.JWT)
 			if err != nil {
 				util.LogInfo("AuthMiddleware invalid db jwt token")
 				util.LogError(err)
@@ -131,56 +141,33 @@ func (h *Middleware) AuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
 				return
 			}
 
-			if time.Now().Unix() > exp {
-				err = h.repo.JwtDeviceRepository().DeleteJwtDevice(dbToken.JWT)
+			if tnow > exp {
+				fmt.Println("AuthMiddleware expired jwt")
+				err = h.repo.JwtDeviceRepository().DeleteJwtDevice(dbJwt.JWT)
 				if err != nil {
 					util.LogError(fmt.Errorf("AuthMiddleware failed to delete jwt device: %v", err))
-					w.WriteHeader(http.StatusUnauthorized)
 					return
 				}
-				util.LogInfo("AuthMiddleware expired token")
+				util.LogInfo("AuthMiddleware expired db jwt token")
 				util.LogError(err)
-				w.WriteHeader(http.StatusUnauthorized)
 				return
 			}
 		}
 
-		_, err = h.repo.JwtDeviceRepository().GetJwtDevice(token)
+		_, err = h.repo.JwtDeviceRepository().GetJwtDevice(requestJWT)
 		if err != nil {
 			util.LogError(fmt.Errorf("get jwt device error: %v", err))
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
 
-		claims, err := util.ParseJWT(token, requestPath)
+		claims, err := util.ParseJWT(requestJWT, requestPath)
 		if err != nil {
-			util.LogInfo("AuthMiddleware invalid token")
+			util.LogInfo("AuthMiddleware invalid requestJWT")
 			util.LogError(err)
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
-
-		/*var actualExp int64
-		if expValue, ok := claims["exp"].(float64); ok {
-			actualExp = int64(expValue)
-		} else {
-			util.LogError(fmt.Errorf("AuthMiddleware actualExp not found or invalid type"))
-			w.WriteHeader(http.StatusUnauthorized)
-			return
-		}
-
-		if time.Now().Unix() > actualExp {
-			err = h.repo.JwtDeviceRepository().DeleteJwtDevice(token)
-			if err != nil {
-				util.LogError(fmt.Errorf("AuthMiddleware failed to delete jwt device: %v", err))
-				w.WriteHeader(http.StatusUnauthorized)
-				return
-			}
-			util.LogInfo("AuthMiddleware expired token")
-			util.LogError(err)
-			w.WriteHeader(http.StatusUnauthorized)
-			return
-		}*/
 
 		idFloat, ok := claims["user_id"].(float64)
 		if !ok {
@@ -210,6 +197,14 @@ func (h *Middleware) AuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
 		tokenDB := h.repo.TokenRepository().UserToken(userID, claims["provider"].(string), claims["device_uuid"].(string))
 		if tokenDB == nil {
 			util.LogError(errors.New("token is not found"))
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+
+		dbJwt.ID = tokenDB.ID
+		err = h.repo.JwtDeviceRepository().AddRefreshTokenJwtDevice(dbJwt.JWT, tokenDB.RefreshToken)
+		if err != nil {
+			util.LogError(fmt.Errorf("AuthMiddleware failed to AddTokenIDJwtDevice: %v", err))
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}

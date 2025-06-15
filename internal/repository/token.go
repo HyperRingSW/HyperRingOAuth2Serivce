@@ -59,7 +59,6 @@ func (repo *PostgresDB) CreateOrUpdateToken(token models.Token) (*models.Token, 
 	}
 
 	newToken := models.Token{
-		ID:           token.ID,
 		UserID:       token.UserID,
 		Provider:     token.Provider,
 		DeviceUUID:   token.DeviceUUID,
@@ -67,13 +66,13 @@ func (repo *PostgresDB) CreateOrUpdateToken(token models.Token) (*models.Token, 
 		RefreshToken: encryptedRefreshToken,
 		ExpirationIn: token.ExpirationIn,
 		IDToken:      encryptedIDToken,
-		ExpiresAt:    time.Now().Add(time.Duration(token.ExpirationIn) * time.Second),
+		ExpiresAt:    time.Now().UTC().Add(time.Duration(token.ExpirationIn) * time.Second),
 		Data:         encryptedData,
 		UpdatedAt:    token.UpdatedAt,
 	}
 
-	//result := repo.db.Where("user_id = ? AND device_uuid = ?", token.UserID, token.DeviceUUID).First(&newToken)
-	result := repo.db.Where("id_token = ?", encryptedIDToken).First(&newToken)
+	result := repo.db.Where("user_id = ? AND device_uuid = ?", token.UserID, token.DeviceUUID).First(&newToken)
+	//result := repo.db.Where("id_token = ?", encryptedIDToken).First(&newToken)
 	if result.RowsAffected == 0 {
 		token.UpdatedAt = time.Now()
 		if err := repo.db.Create(&token).Error; err != nil {
@@ -106,6 +105,7 @@ func (repo *PostgresDB) UpdateToken(token models.Token, provider string, deviceU
 			return nil, err
 		}
 		encryptedAccessToken = enc
+		token.AccessToken = enc
 	}
 
 	encryptedRefreshToken := ""
@@ -115,6 +115,7 @@ func (repo *PostgresDB) UpdateToken(token models.Token, provider string, deviceU
 			return nil, err
 		}
 		encryptedRefreshToken = enc
+		token.RefreshToken = encryptedRefreshToken
 	}
 
 	encryptedData := ""
@@ -132,7 +133,7 @@ func (repo *PostgresDB) UpdateToken(token models.Token, provider string, deviceU
 			return nil, err
 		}
 		encryptedIDToken = enc
-
+		token.IDToken = encryptedIDToken
 	}
 
 	updates := map[string]interface{}{
@@ -148,8 +149,10 @@ func (repo *PostgresDB) UpdateToken(token models.Token, provider string, deviceU
 		delete(updates, "refresh_token")
 	}
 
-	if err := repo.db.Model(&token).Where("id_token = ?", encryptedIDToken).Updates(updates).Error; err != nil {
-		return nil, errors.New("error update token: " + err.Error())
+	result := repo.db.Model(&token).Where("user_id = ? AND device_uuid = ?", token.UserID, deviceUUID).Updates(updates)
+
+	if result.Error != nil {
+		return nil, errors.New("error update token: " + result.Error.Error())
 	}
 
 	return &token, nil
@@ -167,7 +170,7 @@ func (repo *PostgresDB) InvalidateIdToken(idToken string) error {
 func (repo *PostgresDB) UserToken(userId uint, provider string, deviceUUID string) *models.Token {
 	token := &models.Token{}
 
-	result := repo.db.Where("user_id = ? and provider = ? and device_uuid = ?", userId, provider, deviceUUID).First(&token)
+	result := repo.db.Where("user_id = ? and provider = ? and device_uuid = ?", userId, provider, deviceUUID).Last(&token)
 	//result := repo.db.Where("id_token = ? ", idToken).First(&token)
 	if result.RowsAffected != 0 {
 		return token
@@ -184,4 +187,15 @@ func (repo *PostgresDB) UserTokens(userId uint) ([]models.Token, error) {
 	}
 
 	return token, nil
+}
+
+func (repo *PostgresDB) FindRefreshToken(refreshToken string) *models.Token {
+	token := &models.Token{}
+
+	result := repo.db.Where("refresh_token = ? ", refreshToken).First(&token)
+	if result.RowsAffected != 0 {
+		return token
+	}
+
+	return nil
 }
