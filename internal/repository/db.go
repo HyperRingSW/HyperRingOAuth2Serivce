@@ -3,6 +3,7 @@ package repository
 import (
 	"fmt"
 	"log"
+	"oauth2-server/internal/util"
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -46,6 +47,12 @@ func New(cfg config.DatabaseConfig, autoMigrate bool) (*PostgresDB, error) {
 		log.Println("Migrations done")
 	} else {
 		log.Println("AutoMigrate disabled")
+	}
+
+	//TODO обновляем все emails
+	err = util.EncryptUserEmails(db)
+	if err != nil {
+		return nil, fmt.Errorf("encrypt emails: %w", err)
 	}
 
 	return &PostgresDB{db: db}, nil

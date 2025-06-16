@@ -11,8 +11,11 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"gorm.io/gorm"
 	"io/ioutil"
+	"log"
 	"net/http"
+	"oauth2-server/internal/models"
 	"regexp"
 	"strings"
 	"time"
@@ -124,4 +127,40 @@ func DecryptString(encrypted string) (string, error) {
 	}
 
 	return string(plainText), nil
+}
+
+var emailRegex = regexp.MustCompile(`^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$`)
+
+func EncryptUserEmails(db *gorm.DB) error {
+	var users []models.UserAuth
+	if err := db.Find(&users).Error; err != nil {
+		return err
+	}
+
+	for _, user := range users {
+		// проверяем: email уже зашифрован?
+		if !emailRegex.MatchString(user.Email) {
+			continue
+		}
+
+		encryptedEmail, err := EncryptString(user.Email)
+		if err != nil {
+			log.Printf("encryption email failed for user ID %d: %v", user.ID, err)
+			continue
+		}
+
+		encryptedName, err := EncryptString(user.Email)
+		if err != nil {
+			log.Printf("encryption email failed for user ID %d: %v", user.ID, err)
+			continue
+		}
+
+		updates := map[string]interface{}{
+			"email": encryptedEmail,
+			"name":  encryptedName,
+		}
+		return db.Model(&models.UserAuth{}).Where("id = ?", user.ID).Updates(updates).Error
+	}
+
+	return nil
 }
