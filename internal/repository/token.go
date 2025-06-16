@@ -145,10 +145,6 @@ func (repo *PostgresDB) UpdateToken(token models.Token, provider string, deviceU
 		"data":          encryptedData,
 	}
 
-	if provider == models.PROVIDER_GOOGLE || provider == models.PROVIDER_FB {
-		delete(updates, "refresh_token")
-	}
-
 	result := repo.db.Model(&token).Where("user_id = ? AND device_uuid = ?", token.UserID, deviceUUID).Updates(updates)
 
 	if result.Error != nil {

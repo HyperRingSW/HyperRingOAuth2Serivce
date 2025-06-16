@@ -338,6 +338,7 @@ func VerifyAppleIdentityToken(idToken string, providerConfig ProviderConfig) (ma
 func VerifyAccessToken(idToken string, refreshToken string, provider string, providerConfig ProviderConfig) (map[string]interface{}, error) {
 	switch provider {
 	case models.WEB_PROVIDER_GOOGLE,
+		models.PROVIDER_GOOGLE,
 		models.PROVIDER_APPLE:
 		result, err := ValidateAccessToken(idToken)
 		if err != nil {

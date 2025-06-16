@@ -3,9 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
-	"net/url"
 	"oauth2-server/internal/config"
 	"oauth2-server/internal/dependency"
 	"oauth2-server/internal/models"
@@ -172,12 +170,8 @@ func (h *Handler) AuthUserHandler(w http.ResponseWriter, r *http.Request, provid
 		return
 	}
 
-	if body.RefreshToken == "" {
-		body.RefreshToken = refresh
-	}
-	if body.AccessToken == "" {
-		body.AccessToken = access
-	}
+	body.RefreshToken = refresh
+	body.AccessToken = access
 
 	// Create token
 	newToken := models.Token{
@@ -327,52 +321,10 @@ func (h *Handler) RefreshTokenHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	logs["info"]["providerConfig"] = providerConfig
 
-	data := url.Values{}
+	//data := url.Values{}
 	switch token.Provider {
-	/*case models.PROVIDER_APPLE:
-	_, err := providers.VerifyAppleIdentityToken(token.IDToken, providerConfig)
-	if err != nil {
-		logs["error"]["appleIdErrorMessage"] = fmt.Sprintf("error verifying apple: %s", token.IDToken)
-		logs["error"]["appleIdError"] = err.Error()
-		return
-	}
-
-	expiresAt := time.Now().UTC().Add(180 * 24 * time.Hour)
-	if h.cfg.App.CustomExpiresTime {
-		expiresAt = time.Now().UTC().Add(time.Second * time.Duration(h.cfg.App.ExpiresTime))
-	}
-
-	jwtToken, _, err := util.GenerateJWT(userID, provider, expiresAt.Unix(), deviceUUID)
-	if err != nil {
-		logs["error"]["jwtTokenErrorMessage"] = fmt.Sprintf("error generating jwt: %s", token.IDToken)
-		logs["error"]["jwtTokenError"] = err.Error()
-		return
-	}
-
-	err = h.repo.JwtDeviceRepository().DeleteJwtDevice(jwtOld)
-	if err != nil {
-		logs["error"]["jwtTokenErrorMessage"] = fmt.Sprintf("error deleting jwt: %s", jwtOld)
-		logs["error"]["jwtTokenError"] = err.Error()
-		return
-	}
-	_, err = h.repo.JwtDeviceRepository().SaveJwtDevice(&models.JwtDevice{
-		JWT:        jwtToken,
-		DeviceUUID: deviceUUID,
-		Status:     true,
-	})
-	if err != nil {
-		logs["error"]["jwtTokenErrorMessage"] = fmt.Sprintf("error save jwt: %s", jwtOld)
-		logs["error"]["jwtTokenError"] = err.Error()
-		return
-	}
-
-	response = models.AuthResponse{
-		JWTToken:  jwtToken,
-		ExpiresAt: expiresAt.Unix(),
-	}
-
-	return*/
 	case models.WEB_PROVIDER_GOOGLE,
+		models.PROVIDER_GOOGLE,
 		models.PROVIDER_APPLE:
 		_, err := providers.VerifyAccessToken(token.AccessToken, token.RefreshToken, token.Provider, providerConfig)
 		if err != nil {
@@ -383,7 +335,7 @@ func (h *Handler) RefreshTokenHandler(w http.ResponseWriter, r *http.Request) {
 
 		_, err = h.repo.JwtDeviceRepository().GetJwtDevice(jwtOld)
 		if err != nil {
-			logs["error"]["msg"] = err.Error()
+			logs["error"]["GetJwtDevice"] = err.Error()
 			return
 		}
 
@@ -409,6 +361,7 @@ func (h *Handler) RefreshTokenHandler(w http.ResponseWriter, r *http.Request) {
 			ExpiresAt:    expiresAt,
 			UpdatedAt:    time.Now(),
 		}
+
 		newToken, err := h.repo.TokenRepository().UpdateToken(
 			updateTokenDB,
 			token.Provider,
@@ -442,12 +395,14 @@ func (h *Handler) RefreshTokenHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		_, err = h.repo.JwtDeviceRepository().SaveJwtDevice(token.UserID, provider, &models.JwtDevice{
+		saveJWT := &models.JwtDevice{
 			JWT:          newJWT,
 			DeviceUUID:   deviceUUID,
 			RefreshToken: newToken.RefreshToken,
 			Status:       true,
-		})
+		}
+
+		_, err = h.repo.JwtDeviceRepository().SaveJwtDevice(token.UserID, provider, saveJWT)
 		if err != nil {
 			logs["error"]["jwtTokenErrorMessage"] = fmt.Sprintf("error save jwt: %s", jwtOld)
 			logs["error"]["jwtTokenError"] = err.Error()
@@ -460,55 +415,13 @@ func (h *Handler) RefreshTokenHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		return
-
-		/*expiresAt := time.Now().UTC().Add(180 * 24 * time.Hour)
-		if h.cfg.App.CustomExpiresTime {
-			expiresAt = time.Now().UTC().Add(time.Second * time.Duration(h.cfg.App.ExpiresTime))
-		}
-
-		jwtToken, _, err := util.GenerateJWT(userID, provider, expiresAt.Unix(), deviceUUID)
-		if err != nil {
-			logs["error"]["jwtTokenErrorMessage"] = fmt.Sprintf("error generating jwt: %s", token.IDToken)
-			logs["error"]["jwtTokenError"] = err.Error()
-			return
-		}
-
-		err = h.repo.JwtDeviceRepository().DeleteJwtDevice(jwtOld)
-		if err != nil {
-			logs["error"]["jwtTokenErrorMessage"] = fmt.Sprintf("error deleting jwt: %s", jwtOld)
-			logs["error"]["jwtTokenError"] = err.Error()
-			return
-		}
-
-		_, err = h.repo.JwtDeviceRepository().SaveJwtDevice(&models.JwtDevice{
-			JWT:        jwtToken,
-			DeviceUUID: deviceUUID,
-			Status:     true,
-		})
-		if err != nil {
-			logs["error"]["jwtTokenErrorMessage"] = fmt.Sprintf("error save jwt: %s", jwtOld)
-			logs["error"]["jwtTokenError"] = err.Error()
-			return
-		}
-
-		response = models.AuthResponse{
-			JWTToken:  jwtToken,
-			ExpiresAt: expiresAt.Unix(),
-		}
-
-		return*/
-	case models.PROVIDER_GOOGLE:
-		data.Set("client_id", providerConfig.ClientID)
-		data.Set("client_secret", "")
-		data.Set("grant_type", "refresh_token")
-		data.Set("refresh_token", token.RefreshToken)
 	default:
 		logs["error"]["provider"] = fmt.Sprintf("invalid provider: %s", token.Provider)
 		return
 	}
-
+	return
 	// Send POST request to refresh token URL
-	resp, err := http.PostForm(providerConfig.TokenURL, data)
+	/*resp, err := http.PostForm(providerConfig.TokenURL, data)
 	if err != nil {
 		logs["error"]["tokenErrorParams"] = fmt.Sprintf("providerConfig.TokenURL, data: %s, %s", providerConfig.TokenURL, data)
 		logs["error"]["tokenError"] = err.Error()
@@ -613,7 +526,7 @@ func (h *Handler) RefreshTokenHandler(w http.ResponseWriter, r *http.Request) {
 		ExpiresAt: expiresAt.Unix(),
 	}
 
-	return
+	return*/
 }
 
 // LogoutHandler
