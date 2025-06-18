@@ -134,9 +134,9 @@ func (h *Handler) AuthUserHandler(w http.ResponseWriter, r *http.Request, provid
 
 	// Create user
 	userAuth := models.UserAuth{
-		Email: email,
-		Name:  name,
-		//Data:      string(claimsJSON),
+		Email:     email,
+		Name:      name,
+		Data:      string(claimsJSON),
 		CreatedAt: time.Now(),
 	}
 	user, err := h.repo.UserRepository().CreateOrUpdateUser(userAuth)
