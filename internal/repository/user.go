@@ -22,24 +22,24 @@ func (repo *PostgresDB) UserRepository() dependency.UserRepository {
 
 // CreateOrUpdateUser
 func (repo *PostgresDB) CreateOrUpdateUser(userAuth models.UserAuth) (*models.UserAuth, error) {
-	emailEncrypt, err := util.EncryptString(userAuth.Email)
+	/*emailEncrypt, err := util.EncryptString(userAuth.Email)
 	if err != nil {
 		return nil, err
-	}
+	}*/
 
-	result := repo.db.Where("email = ?", emailEncrypt).First(&userAuth)
+	result := repo.db.Where("email = ?", userAuth.Email).First(&userAuth)
 	if result.RowsAffected == 0 {
-		userAuth.Email = emailEncrypt
+		//userAuth.Email = emailEncrypt
 
-		if userAuth.Name != "" {
+		/*if userAuth.Name != "" {
 			nameEncrypt, err := util.EncryptString(userAuth.Name)
 			if err != nil {
 				return nil, err
 			}
 			userAuth.Name = nameEncrypt
-		}
+		}*/
 
-		userAuth.Data = "{}"
+		//userAuth.Data = "{}"
 
 		if err := repo.db.Create(&userAuth).Error; err != nil {
 			err = errors.New("create user auth failed: " + err.Error())
@@ -78,7 +78,7 @@ func (repo *PostgresDB) GetUserByID(userID uint) *models.UserAuth {
 		return nil
 	}
 
-	if user.Name != "" {
+	/*if user.Name != "" {
 		name, err := util.DecryptString(user.Name)
 		if err != nil {
 			return nil
@@ -92,7 +92,7 @@ func (repo *PostgresDB) GetUserByID(userID uint) *models.UserAuth {
 			return nil
 		}
 		user.Email = email
-	}
+	}*/
 
 	return &user
 }
