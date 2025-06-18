@@ -149,7 +149,7 @@ func EncryptUserEmails(db *gorm.DB) error {
 			continue
 		}
 
-		encryptedName, err := EncryptString(user.Email)
+		encryptedName, err := EncryptString(user.Name)
 		if err != nil {
 			log.Printf("encryption email failed for user ID %d: %v", user.ID, err)
 			continue
