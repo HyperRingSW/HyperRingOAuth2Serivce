@@ -830,9 +830,9 @@ func (h *Handler) WebGoogleHandler(w http.ResponseWriter, r *http.Request) {
 
 	// Create user
 	userAuth := models.UserAuth{
-		Email: email,
-		Name:  name,
-		//Data:      string(claimsJSON),
+		Email:     email,
+		Name:      name,
+		Data:      string(claimsJSON),
 		CreatedAt: time.Now(),
 	}
 	user, err := h.repo.UserRepository().CreateOrUpdateUser(userAuth)

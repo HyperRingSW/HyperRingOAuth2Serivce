@@ -40,6 +40,9 @@ func (repo *PostgresDB) CreateOrUpdateUser(userAuth models.UserAuth) (*models.Us
 		}*/
 
 		//userAuth.Data = "{}"
+		if userAuth.Data == "" {
+			userAuth.Data = "{}"
+		}
 
 		if err := repo.db.Create(&userAuth).Error; err != nil {
 			err = errors.New("create user auth failed: " + err.Error())
