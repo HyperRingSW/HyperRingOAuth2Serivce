@@ -149,6 +149,7 @@ func (h *Middleware) AuthMiddleware(next http.HandlerFunc) http.HandlerFunc {
 				}
 				util.LogInfo("AuthMiddleware expired db jwt token")
 				util.LogError(err)
+				w.WriteHeader(http.StatusUnauthorized)
 				return
 			}
 		}
